@@ -17,13 +17,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("series")
-    .select(
-      `
-      *,
-      cover_panel:panels!series_cover_panel_id_fkey(id, image_url),
-      panels(id)
-    `
-    )
+    .select("*, panels(id)")
     .order("created_at", { ascending: false });
 
   if (error) {
