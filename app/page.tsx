@@ -7,17 +7,43 @@ export const revalidate = 60;
 async function getAllSeries() {
   const { data, error } = await supabase
     .from("series")
-    .select(
-      `
-      id, title, slug, description, autoplay_speed, created_at,
-      cover_panel:panels!series_cover_panel_id_fkey(id, image_url),
-      panel_count:panels(count)
-    `
-    )
+    .select("id, title, slug, description, autoplay_speed, cover_panel_id, created_at")
     .order("created_at", { ascending: false });
 
   if (error) return [];
-  return data ?? [];
+
+  const series = data ?? [];
+
+  return Promise.all(
+    series.map(async (s) => {
+      const { count } = await supabase
+        .from("panels")
+        .select("id", { count: "exact", head: true })
+        .eq("series_id", s.id);
+
+      let coverUrl: string | null = null;
+      if (s.cover_panel_id) {
+        const { data: panel } = await supabase
+          .from("panels")
+          .select("image_url")
+          .eq("id", s.cover_panel_id)
+          .single();
+        coverUrl = panel?.image_url ?? null;
+      } else {
+        // Use first panel as cover if no cover set
+        const { data: first } = await supabase
+          .from("panels")
+          .select("image_url")
+          .eq("series_id", s.id)
+          .order("display_order", { ascending: true })
+          .limit(1)
+          .single();
+        coverUrl = first?.image_url ?? null;
+      }
+
+      return { ...s, coverUrl, panel_count: count ?? 0 };
+    })
+  );
 }
 
 export default async function HomePage() {
@@ -37,11 +63,7 @@ export default async function HomePage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {series.map((s) => {
-              const coverUrl = (
-                s.cover_panel as unknown as { id: string; image_url: string } | null
-              )?.image_url;
-              const panelCount =
-                (s.panel_count as { count: number }[])?.[0]?.count ?? 0;
+              const { coverUrl, panel_count: panelCount } = s;
 
               return (
                 <Link
