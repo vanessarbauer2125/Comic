@@ -6,15 +6,21 @@ import type { Panel } from "@/lib/supabase";
 export const revalidate = 60;
 
 async function getSeriesBySlug(slug: string) {
-  const { data, error } = await supabase
+  const { data: series, error } = await supabase
     .from("series")
-    .select("*, panels(*)")
+    .select("*")
     .eq("slug", slug)
-    .order("display_order", { referencedTable: "panels", ascending: true })
     .single();
 
-  if (error) return null;
-  return data;
+  if (error || !series) return null;
+
+  const { data: panels } = await supabase
+    .from("panels")
+    .select("*")
+    .eq("series_id", series.id)
+    .order("display_order", { ascending: true });
+
+  return { ...series, panels: panels ?? [] };
 }
 
 export default async function ComicPage({
