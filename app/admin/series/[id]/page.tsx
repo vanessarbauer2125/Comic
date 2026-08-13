@@ -3,15 +3,21 @@ import { supabase } from "@/lib/supabase";
 import SeriesEditor from "./SeriesEditor";
 
 async function getSeries(id: string) {
-  const { data, error } = await supabase
+  const { data: series, error: seriesError } = await supabase
     .from("series")
-    .select("*, panels(*)")
+    .select("*")
     .eq("id", id)
-    .order("display_order", { referencedTable: "panels", ascending: true })
     .single();
 
-  if (error) return null;
-  return data;
+  if (seriesError || !series) return null;
+
+  const { data: panels } = await supabase
+    .from("panels")
+    .select("*")
+    .eq("series_id", id)
+    .order("display_order", { ascending: true });
+
+  return { ...series, panels: panels ?? [] };
 }
 
 export default async function SeriesAdminPage({
