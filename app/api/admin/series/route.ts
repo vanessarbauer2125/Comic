@@ -15,16 +15,27 @@ export async function GET() {
   const auth = await requireAdmin();
   if (auth) return auth;
 
-  const { data, error } = await supabase
+  const { data: seriesList, error } = await supabase
     .from("series")
-    .select("*, panels(id)")
+    .select("*")
     .order("created_at", { ascending: false });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  // Fetch panel counts separately
+  const result = await Promise.all(
+    (seriesList ?? []).map(async (s) => {
+      const { count } = await supabase
+        .from("panels")
+        .select("id", { count: "exact", head: true })
+        .eq("series_id", s.id);
+      return { ...s, panel_count: count ?? 0 };
+    })
+  );
+
+  return NextResponse.json(result);
 }
 
 export async function POST(request: NextRequest) {

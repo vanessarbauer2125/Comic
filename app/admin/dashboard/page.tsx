@@ -10,8 +10,7 @@ interface SeriesSummary {
   slug: string;
   autoplay_speed: number;
   created_at: string;
-  cover_panel: { id: string; image_url: string } | null;
-  panels: { id: string }[];
+  panel_count: number;
 }
 
 export default function DashboardPage() {
@@ -187,26 +186,12 @@ export default function DashboardPage() {
                 href={`/admin/series/${s.id}`}
                 className="flex items-center gap-4 bg-white border border-gray-100 rounded-lg px-5 py-4 hover:border-gray-300 transition-colors"
               >
-                <div className="w-10 h-10 rounded bg-gray-50 flex-shrink-0 overflow-hidden relative">
-                  {s.cover_panel?.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={s.cover_panel.image_url}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="absolute inset-0 flex items-center justify-center text-gray-300 text-lg">
-                      ◻
-                    </span>
-                  )}
-                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
                     {s.title}
                   </p>
                   <p className="text-xs text-gray-400 truncate">
-                    /{s.slug} · {s.panels?.length ?? 0} panels
+                    /{s.slug} · {s.panel_count} panels
                   </p>
                 </div>
                 <span className="text-xs text-gray-300">→</span>
