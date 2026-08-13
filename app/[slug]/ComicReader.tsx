@@ -13,7 +13,7 @@ interface Props {
 
 export default function ComicReader({ title, panels, autospeed }: Props) {
   const [current, setCurrent] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlaying] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const total = panels.length;
 
@@ -93,17 +93,20 @@ export default function ComicReader({ title, panels, autospeed }: Props) {
 
       {/* Panel display */}
       <div
-        className="flex-1 flex items-center justify-center px-4 py-6 cursor-pointer"
+        className="flex-1 flex items-center justify-center px-4 py-6 cursor-pointer overflow-hidden"
         onClick={goNext}
       >
-        <div className="relative w-full max-w-3xl">
+        <div className="relative w-full max-w-3xl overflow-hidden rounded-sm">
           <Image
             key={panel.id}
             src={panel.image_url}
             alt={`Panel ${current + 1}`}
             width={1200}
             height={900}
-            className="w-full h-auto object-contain rounded-sm"
+            className="w-full h-auto object-contain"
+            style={{
+              animation: `kenburns ${autospeed}s ease-in-out forwards`,
+            }}
             priority
             sizes="(max-width: 768px) 100vw, 768px"
           />
