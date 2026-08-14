@@ -45,6 +45,7 @@ export default async function ComicPage({
       zoomAmount={series.zoom_amount ?? 2.5}
       zoomOrigin={series.zoom_origin ?? "random"}
       bgColor={series.background_color ?? "#000000"}
+      defaultPanelWidth={series.default_panel_width ?? 100}
     />
   );
 }

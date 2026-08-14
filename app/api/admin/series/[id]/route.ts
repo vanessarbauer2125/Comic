@@ -63,6 +63,7 @@ export async function PUT(
   if (zoom_amount !== undefined) updates.zoom_amount = zoom_amount;
   if (zoom_origin !== undefined) updates.zoom_origin = zoom_origin;
   if (body.background_color !== undefined) updates.background_color = body.background_color;
+  if (body.default_panel_width !== undefined) updates.default_panel_width = body.default_panel_width;
 
   const { data, error } = await supabase
     .from("series")

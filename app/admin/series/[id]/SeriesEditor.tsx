@@ -31,6 +31,8 @@ interface SortablePanelProps {
   onSetCover: (id: string) => void;
   onDelete: (id: string) => void;
   deleting: boolean;
+  seriesId: string;
+  onPanelUpdate: (panelId: string, width: number | null, height: number | null) => void;
 }
 
 function SortablePanel({
@@ -39,15 +41,152 @@ function SortablePanel({
   onSetCover,
   onDelete,
   deleting,
+  seriesId,
+  onPanelUpdate,
 }: SortablePanelProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: panel.id });
+
+  const [localWidth, setLocalWidth] = useState<number | null>(panel.custom_width ?? null);
+  const [localHeight, setLocalHeight] = useState<number | null>(panel.custom_height ?? null);
+  const [widthInput, setWidthInput] = useState(panel.custom_width != null ? String(panel.custom_width) : "");
+  const [heightInput, setHeightInput] = useState(panel.custom_height != null ? String(panel.custom_height) : "");
+
+  const dragStateRef = useRef<{
+    dragging: boolean;
+    corner: "tl" | "tr" | "bl" | "br";
+    startX: number;
+    startY: number;
+    startW: number;
+    startH: number | null;
+    currentW: number;
+    currentH: number | null;
+  } | null>(null);
+  const thumbnailRef = useRef<HTMLDivElement>(null);
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 10 : undefined,
+  };
+
+  async function savePanel(width: number | null, height: number | null) {
+    onPanelUpdate(panel.id, width, height);
+    try {
+      await fetch(`/api/admin/series/${seriesId}/panels/${panel.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ custom_width: width, custom_height: height }),
+      });
+    } catch {
+      // silent
+    }
+  }
+
+  function handleCornerMouseDown(e: React.MouseEvent, corner: "tl" | "tr" | "bl" | "br") {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const containerEl = thumbnailRef.current;
+    if (!containerEl) return;
+    const rect = containerEl.getBoundingClientRect();
+
+    dragStateRef.current = {
+      dragging: true,
+      corner,
+      startX: e.clientX,
+      startY: e.clientY,
+      startW: localWidth ?? 100,
+      startH: localHeight,
+      currentW: localWidth ?? 100,
+      currentH: localHeight,
+    };
+
+    function onMouseMove(me: MouseEvent) {
+      const ds = dragStateRef.current;
+      if (!ds) return;
+
+      const containerRect = thumbnailRef.current?.getBoundingClientRect() ?? rect;
+      const containerWidth = containerRect.width || 1;
+      const containerHeight = containerRect.height || 1;
+
+      const dx = me.clientX - ds.startX;
+      const dy = me.clientY - ds.startY;
+
+      // Width: left corners invert direction
+      const widthSign = (corner === "tl" || corner === "bl") ? -1 : 1;
+      const rawW = ds.startW + (dx * widthSign / containerWidth) * 100;
+      const newW = Math.round(Math.min(100, Math.max(10, rawW)));
+
+      // Height: top corners invert direction
+      const heightSign = (corner === "tl" || corner === "tr") ? -1 : 1;
+      const startH = ds.startH ?? 0;
+      const rawH = startH + (dy * heightSign / containerHeight) * 100;
+      // If dragged very close to 0, treat as "auto"
+      let newH: number | null;
+      if (rawH < 5) {
+        newH = null;
+      } else {
+        newH = Math.round(Math.min(100, Math.max(10, rawH)));
+      }
+
+      if (dragStateRef.current) {
+        dragStateRef.current.currentW = newW;
+        dragStateRef.current.currentH = newH;
+      }
+      setLocalWidth(newW);
+      setWidthInput(String(newW));
+      setLocalHeight(newH);
+      setHeightInput(newH != null ? String(newH) : "");
+    }
+
+    function onMouseUp() {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      const ds = dragStateRef.current;
+      if (!ds) return;
+      savePanel(ds.currentW, ds.currentH);
+      dragStateRef.current = null;
+    }
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }
+
+  function handleWidthBlur() {
+    const val = parseInt(widthInput, 10);
+    const clamped = isNaN(val) ? null : Math.min(100, Math.max(10, val));
+    setLocalWidth(clamped);
+    savePanel(clamped, localHeight);
+  }
+
+  function handleHeightBlur() {
+    const trimmed = heightInput.trim().toLowerCase();
+    if (!trimmed || trimmed === "auto") {
+      setLocalHeight(null);
+      setHeightInput("");
+      savePanel(localWidth, null);
+    } else {
+      const val = parseInt(trimmed, 10);
+      const clamped = isNaN(val) ? null : Math.min(100, Math.max(10, val));
+      setLocalHeight(clamped);
+      setHeightInput(clamped != null ? String(clamped) : "");
+      savePanel(localWidth, clamped);
+    }
+  }
+
+  const cornerCursors = {
+    tl: "cursor-nw-resize",
+    tr: "cursor-ne-resize",
+    bl: "cursor-sw-resize",
+    br: "cursor-se-resize",
+  };
+  const cornerPositions = {
+    tl: "top-0 left-0",
+    tr: "top-0 right-0",
+    bl: "bottom-0 left-0",
+    br: "bottom-0 right-0",
   };
 
   return (
@@ -75,7 +214,7 @@ function SortablePanel({
         </div>
       )}
 
-      <div className="aspect-[4/3] relative">
+      <div className="aspect-[4/3] relative" ref={thumbnailRef}>
         <Image
           src={panel.image_url}
           alt={`Panel ${panel.display_order + 1}`}
@@ -83,28 +222,64 @@ function SortablePanel({
           className="object-cover"
           sizes="(max-width: 640px) 50vw, 33vw"
         />
+        {/* Corner resize handles */}
+        {(["tl", "tr", "bl", "br"] as const).map((corner) => (
+          <div
+            key={corner}
+            onMouseDown={(e) => handleCornerMouseDown(e, corner)}
+            className={`absolute z-20 w-2 h-2 bg-gray-400 opacity-0 group-hover:opacity-100 transition-opacity ${cornerCursors[corner]} ${cornerPositions[corner]}`}
+            style={{ touchAction: "none" }}
+          />
+        ))}
       </div>
 
-      <div className="flex items-center justify-between px-2 py-1.5 bg-white">
-        <span className="text-xs text-gray-400">#{panel.display_order + 1}</span>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {!isCover && (
+      <div className="px-2 py-1.5 bg-white space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-400">#{panel.display_order + 1}</span>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {!isCover && (
+              <button
+                onClick={() => onSetCover(panel.id)}
+                title="Set as cover"
+                className="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+              >
+                Cover
+              </button>
+            )}
             <button
-              onClick={() => onSetCover(panel.id)}
-              title="Set as cover"
-              className="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+              onClick={() => onDelete(panel.id)}
+              disabled={deleting}
+              title="Delete panel"
+              className="text-xs px-2 py-0.5 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors disabled:opacity-50"
             >
-              Cover
+              Del
             </button>
-          )}
-          <button
-            onClick={() => onDelete(panel.id)}
-            disabled={deleting}
-            title="Delete panel"
-            className="text-xs px-2 py-0.5 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors disabled:opacity-50"
-          >
-            Del
-          </button>
+          </div>
+        </div>
+        {/* Size inputs */}
+        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <label className="text-[10px] text-gray-400">W:</label>
+          <input
+            type="number"
+            min={10}
+            max={100}
+            value={widthInput}
+            onChange={(e) => setWidthInput(e.target.value)}
+            onBlur={handleWidthBlur}
+            placeholder="100"
+            className="w-12 px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
+          />
+          <span className="text-[10px] text-gray-400">%</span>
+          <label className="text-[10px] text-gray-400 ml-1">H:</label>
+          <input
+            type="text"
+            value={heightInput}
+            onChange={(e) => setHeightInput(e.target.value)}
+            onBlur={handleHeightBlur}
+            placeholder="auto"
+            className="w-12 px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
+          />
+          {heightInput && <span className="text-[10px] text-gray-400">%</span>}
         </div>
       </div>
     </div>
@@ -122,6 +297,7 @@ export default function SeriesEditor({ series }: Props) {
   const [zoomAmount, setZoomAmount] = useState(series.zoom_amount ?? 2.5);
   const [zoomOrigin, setZoomOrigin] = useState(series.zoom_origin ?? "random");
   const [bgColor, setBgColor] = useState(series.background_color ?? "#000000");
+  const [defaultPanelWidth, setDefaultPanelWidth] = useState(series.default_panel_width ?? 100);
   const [panels, setPanels] = useState<Panel[]>(series.panels ?? []);
   const [coverPanelId, setCoverPanelId] = useState<string | null>(
     series.cover_panel_id
@@ -148,7 +324,7 @@ export default function SeriesEditor({ series }: Props) {
       const res = await fetch(`/api/admin/series/${series.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, slug, description, autoplay_speed: autospeed, cover_panel_id: coverPanelId, fade_duration: fadeDuration, transition_type: transitionType, zoom_amount: zoomAmount, zoom_origin: zoomOrigin, background_color: bgColor }),
+        body: JSON.stringify({ title, slug, description, autoplay_speed: autospeed, cover_panel_id: coverPanelId, fade_duration: fadeDuration, transition_type: transitionType, zoom_amount: zoomAmount, zoom_origin: zoomOrigin, background_color: bgColor, default_panel_width: defaultPanelWidth }),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -251,6 +427,14 @@ export default function SeriesEditor({ series }: Props) {
       setDeletingId(null);
       setDeleting(false);
     }
+  }
+
+  function handlePanelUpdate(panelId: string, width: number | null, height: number | null) {
+    setPanels((prev) =>
+      prev.map((p) =>
+        p.id === panelId ? { ...p, custom_width: width, custom_height: height } : p
+      )
+    );
   }
 
   async function handleDeleteSeries() {
@@ -414,6 +598,37 @@ export default function SeriesEditor({ series }: Props) {
             </div>
 
             <div>
+              <label className="block text-xs text-gray-500 mb-2">
+                Default panel size: <span className="font-medium text-gray-700">{defaultPanelWidth}%</span>
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={10}
+                  max={100}
+                  step={5}
+                  value={defaultPanelWidth}
+                  onChange={(e) => setDefaultPanelWidth(parseInt(e.target.value))}
+                  className="flex-1 accent-gray-900"
+                />
+                <input
+                  type="number"
+                  min={10}
+                  max={100}
+                  step={5}
+                  value={defaultPanelWidth}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val)) setDefaultPanelWidth(Math.min(100, Math.max(10, val)));
+                  }}
+                  className="w-16 px-2 py-1.5 border border-gray-200 rounded-md text-sm text-center focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+                <span className="text-sm text-gray-400">%</span>
+              </div>
+              <div className="flex justify-between text-xs text-gray-300 mt-1"><span>10%</span><span>100%</span></div>
+            </div>
+
+            <div>
               <label className="block text-xs text-gray-500 mb-2">Background color</label>
               <div className="flex items-center gap-3">
                 <input
@@ -516,6 +731,8 @@ export default function SeriesEditor({ series }: Props) {
                       onSetCover={handleSetCover}
                       onDelete={handleDelete}
                       deleting={deleting && deletingId === panel.id}
+                      seriesId={series.id}
+                      onPanelUpdate={handlePanelUpdate}
                     />
                   ))}
                 </div>

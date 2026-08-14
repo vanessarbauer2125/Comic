@@ -21,6 +21,7 @@ export interface Series {
   zoom_amount: number;
   zoom_origin: string;
   background_color: string;
+  default_panel_width: number;
   created_at: string;
   updated_at: string;
   // joined
@@ -33,5 +34,7 @@ export interface Panel {
   series_id: string;
   image_url: string;
   display_order: number;
+  custom_width: number | null;
+  custom_height: number | null;
   created_at: string;
 }

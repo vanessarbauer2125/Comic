@@ -11,6 +11,35 @@ async function requireAdmin() {
   return null;
 }
 
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; panelId: string }> }
+) {
+  const auth = await requireAdmin();
+  if (auth) return auth;
+
+  const { id, panelId } = await params;
+  const body = await request.json();
+
+  const updates: Record<string, unknown> = {};
+  if (body.custom_width !== undefined) updates.custom_width = body.custom_width;
+  if (body.custom_height !== undefined) updates.custom_height = body.custom_height;
+
+  const { data, error } = await supabase
+    .from("panels")
+    .update(updates)
+    .eq("id", panelId)
+    .eq("series_id", id)
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
+}
+
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string; panelId: string }> }

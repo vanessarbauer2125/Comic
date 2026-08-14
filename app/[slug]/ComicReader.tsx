@@ -14,6 +14,7 @@ interface Props {
   zoomAmount: number;
   zoomOrigin: string;
   bgColor: string;
+  defaultPanelWidth: number;
 }
 
 const ORIGINS = [
@@ -27,7 +28,7 @@ function pickOrigin(zoomOrigin: string): string {
   return zoomOrigin;
 }
 
-export default function ComicReader({ title, panels, autospeed, fadeDuration, transitionType, zoomAmount, zoomOrigin, bgColor }: Props) {
+export default function ComicReader({ title, panels, autospeed, fadeDuration, transitionType, zoomAmount, zoomOrigin, bgColor, defaultPanelWidth }: Props) {
   const [current, setCurrent] = useState(0);
   const [prev, setPrev] = useState<number | null>(null);
   const [playing, setPlaying] = useState(true);
@@ -182,42 +183,64 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
         onClick={goNext}
       >
         {/* Previous panel (crossfade only) */}
-        {transitionType === "crossfade" && prev !== null && (
-          <div className="absolute inset-0 flex items-center justify-center px-4 py-6">
-            <div className="relative w-full max-w-3xl overflow-hidden rounded-sm">
+        {transitionType === "crossfade" && prev !== null && (() => {
+          const prevPanel = panels[prev];
+          const prevWidth = prevPanel.custom_width ?? defaultPanelWidth;
+          const prevHeight = prevPanel.custom_height ?? null;
+          return (
+            <div className="absolute inset-0 flex items-center justify-center px-4 py-6">
+              <div
+                className="relative w-full overflow-hidden rounded-sm"
+                style={{
+                  maxWidth: prevWidth + "%",
+                  ...(prevHeight ? { maxHeight: prevHeight + "vh" } : {}),
+                }}
+              >
+                <Image
+                  src={prevPanel.image_url}
+                  alt={`Panel ${prev + 1}`}
+                  width={1200}
+                  height={900}
+                  className="w-full h-auto object-contain"
+                  style={{ opacity: crossfadeIn ? 0 : 1, transition: `opacity ${fadeDuration}ms ease-in-out` }}
+                  sizes="(max-width: 768px) 100vw, 768px"
+                />
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Current panel */}
+        {(() => {
+          const curPanel = panels[current];
+          const curWidth = curPanel.custom_width ?? defaultPanelWidth;
+          const curHeight = curPanel.custom_height ?? null;
+          return (
+            <div
+              className="relative w-full overflow-hidden rounded-sm"
+              style={{
+                maxWidth: curWidth + "%",
+                ...(curHeight ? { maxHeight: curHeight + "vh" } : {}),
+                ...(transitionType === "crossfade" ? {
+                  opacity: crossfadeIn ? 1 : (prev !== null ? 0 : 1),
+                  transition: `opacity ${fadeDuration}ms ease-in-out`,
+                } : {}),
+              }}
+            >
               <Image
-                src={panels[prev].image_url}
-                alt={`Panel ${prev + 1}`}
+                key={`${curPanel.id}-${originRef.current}`}
+                src={curPanel.image_url}
+                alt={`Panel ${current + 1}`}
                 width={1200}
                 height={900}
                 className="w-full h-auto object-contain"
-                style={{ opacity: crossfadeIn ? 0 : 1, transition: `opacity ${fadeDuration}ms ease-in-out` }}
+                style={panelImageStyle}
+                priority
                 sizes="(max-width: 768px) 100vw, 768px"
               />
             </div>
-          </div>
-        )}
-
-        {/* Current panel */}
-        <div
-          className="relative w-full max-w-3xl overflow-hidden rounded-sm"
-          style={transitionType === "crossfade" ? {
-            opacity: crossfadeIn ? 1 : (prev !== null ? 0 : 1),
-            transition: `opacity ${fadeDuration}ms ease-in-out`,
-          } : {}}
-        >
-          <Image
-            key={`${panels[current].id}-${originRef.current}`}
-            src={panels[current].image_url}
-            alt={`Panel ${current + 1}`}
-            width={1200}
-            height={900}
-            className="w-full h-auto object-contain"
-            style={panelImageStyle}
-            priority
-            sizes="(max-width: 768px) 100vw, 768px"
-          />
-        </div>
+          );
+        })()}
 
         {/* Fade-to-black overlay */}
         {transitionType === "fade-black" && (
