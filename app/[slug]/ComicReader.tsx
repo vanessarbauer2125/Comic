@@ -17,6 +17,20 @@ export default function ComicReader({ title, panels, autospeed }: Props) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const total = panels.length;
 
+  const origins = [
+    "20% 20%", "50% 20%", "80% 20%",
+    "20% 50%", "50% 50%", "80% 50%",
+    "20% 80%", "50% 80%", "80% 80%",
+  ];
+  const originRef = useRef(origins[Math.floor(Math.random() * origins.length)]);
+
+  // Pick a new random origin on each panel change
+  useEffect(() => {
+    const next = origins[Math.floor(Math.random() * origins.length)];
+    originRef.current = next;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current]);
+
   const goNext = useCallback(() => {
     setCurrent((c) => (c + 1) % total);
   }, [total]);
@@ -105,7 +119,8 @@ export default function ComicReader({ title, panels, autospeed }: Props) {
             height={900}
             className="w-full h-auto object-contain"
             style={{
-              animation: `kenburns ${autospeed}s ease-in-out forwards`,
+              animation: `kenburns ${autospeed}s linear forwards`,
+              transformOrigin: originRef.current,
             }}
             priority
             sizes="(max-width: 768px) 100vw, 768px"
