@@ -44,6 +44,7 @@ export default async function ComicPage({
       transitionType={series.transition_type ?? "fade-black"}
       zoomAmount={series.zoom_amount ?? 2.5}
       zoomOrigin={series.zoom_origin ?? "random"}
+      bgColor={series.background_color ?? "#000000"}
     />
   );
 }

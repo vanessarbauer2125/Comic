@@ -121,6 +121,7 @@ export default function SeriesEditor({ series }: Props) {
   const [transitionType, setTransitionType] = useState(series.transition_type ?? "fade-black");
   const [zoomAmount, setZoomAmount] = useState(series.zoom_amount ?? 2.5);
   const [zoomOrigin, setZoomOrigin] = useState(series.zoom_origin ?? "random");
+  const [bgColor, setBgColor] = useState(series.background_color ?? "#000000");
   const [panels, setPanels] = useState<Panel[]>(series.panels ?? []);
   const [coverPanelId, setCoverPanelId] = useState<string | null>(
     series.cover_panel_id
@@ -147,7 +148,7 @@ export default function SeriesEditor({ series }: Props) {
       const res = await fetch(`/api/admin/series/${series.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, slug, description, autoplay_speed: autospeed, cover_panel_id: coverPanelId, fade_duration: fadeDuration, transition_type: transitionType, zoom_amount: zoomAmount, zoom_origin: zoomOrigin }),
+        body: JSON.stringify({ title, slug, description, autoplay_speed: autospeed, cover_panel_id: coverPanelId, fade_duration: fadeDuration, transition_type: transitionType, zoom_amount: zoomAmount, zoom_origin: zoomOrigin, background_color: bgColor }),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -409,6 +410,29 @@ export default function SeriesEditor({ series }: Props) {
                 <p className="text-xs text-gray-400">
                   {zoomOrigin === "random" ? "Random position" : `Fixed: ${zoomOrigin}`}
                 </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-2">Background color</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={bgColor}
+                  onChange={(e) => setBgColor(e.target.value)}
+                  className="w-10 h-10 rounded cursor-pointer border border-gray-200 p-0.5"
+                />
+                <input
+                  type="text"
+                  value={bgColor}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setBgColor(val);
+                  }}
+                  placeholder="#000000"
+                  className="w-32 px-3 py-2 border border-gray-200 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+                <div className="w-8 h-8 rounded border border-gray-200 flex-shrink-0" style={{ backgroundColor: bgColor }} />
               </div>
             </div>
 

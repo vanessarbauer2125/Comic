@@ -13,6 +13,7 @@ interface Props {
   transitionType: string;
   zoomAmount: number;
   zoomOrigin: string;
+  bgColor: string;
 }
 
 const ORIGINS = [
@@ -26,7 +27,7 @@ function pickOrigin(zoomOrigin: string): string {
   return zoomOrigin;
 }
 
-export default function ComicReader({ title, panels, autospeed, fadeDuration, transitionType, zoomAmount, zoomOrigin }: Props) {
+export default function ComicReader({ title, panels, autospeed, fadeDuration, transitionType, zoomAmount, zoomOrigin, bgColor }: Props) {
   const [current, setCurrent] = useState(0);
   const [prev, setPrev] = useState<number | null>(null);
   const [playing, setPlaying] = useState(true);
@@ -152,7 +153,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
 
   if (total === 0) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white">
+      <div className="min-h-screen flex flex-col items-center justify-center text-white" style={{ backgroundColor: bgColor }}>
         <p className="text-gray-500 text-sm">No panels in this series yet.</p>
         <Link href="/" className="mt-6 text-xs text-gray-600 hover:text-gray-400 underline">← Back</Link>
       </div>
@@ -167,7 +168,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col select-none">
+    <div className="min-h-screen flex flex-col select-none" style={{ backgroundColor: bgColor }}>
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
         <Link href="/" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">← All Comics</Link>
@@ -221,8 +222,8 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
         {/* Fade-to-black overlay */}
         {transitionType === "fade-black" && (
           <div
-            className="absolute inset-0 bg-black pointer-events-none"
-            style={{ opacity: overlayOpacity, transition: `opacity ${fadeDuration}ms ease-in-out` }}
+            className="absolute inset-0 pointer-events-none"
+            style={{ backgroundColor: bgColor, opacity: overlayOpacity, transition: `opacity ${fadeDuration}ms ease-in-out` }}
           />
         )}
       </div>

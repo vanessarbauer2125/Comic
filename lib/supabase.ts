@@ -20,6 +20,7 @@ export interface Series {
   transition_type: string;
   zoom_amount: number;
   zoom_origin: string;
+  background_color: string;
   created_at: string;
   updated_at: string;
   // joined
