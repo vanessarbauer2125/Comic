@@ -117,6 +117,10 @@ export default function SeriesEditor({ series }: Props) {
   const [slug, setSlug] = useState(series.slug);
   const [description, setDescription] = useState(series.description ?? "");
   const [autospeed, setAutospeed] = useState(series.autoplay_speed ?? 3.5);
+  const [fadeDuration, setFadeDuration] = useState(series.fade_duration ?? 400);
+  const [transitionType, setTransitionType] = useState(series.transition_type ?? "fade-black");
+  const [zoomAmount, setZoomAmount] = useState(series.zoom_amount ?? 2.5);
+  const [zoomOrigin, setZoomOrigin] = useState(series.zoom_origin ?? "random");
   const [panels, setPanels] = useState<Panel[]>(series.panels ?? []);
   const [coverPanelId, setCoverPanelId] = useState<string | null>(
     series.cover_panel_id
@@ -143,7 +147,7 @@ export default function SeriesEditor({ series }: Props) {
       const res = await fetch(`/api/admin/series/${series.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, slug, description, autoplay_speed: autospeed, cover_panel_id: coverPanelId }),
+        body: JSON.stringify({ title, slug, description, autoplay_speed: autospeed, cover_panel_id: coverPanelId, fade_duration: fadeDuration, transition_type: transitionType, zoom_amount: zoomAmount, zoom_origin: zoomOrigin }),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -336,23 +340,75 @@ export default function SeriesEditor({ series }: Props) {
 
             <div>
               <label className="block text-xs text-gray-500 mb-2">
-                Autoplay speed:{" "}
-                <span className="font-medium text-gray-700">
-                  {autospeed.toFixed(1)}s
-                </span>
+                Autoplay speed: <span className="font-medium text-gray-700">{autospeed.toFixed(1)}s</span>
               </label>
-              <input
-                type="range"
-                min={1}
-                max={10}
-                step={0.5}
-                value={autospeed}
+              <input type="range" min={1} max={10} step={0.5} value={autospeed}
                 onChange={(e) => setAutospeed(parseFloat(e.target.value))}
-                className="w-full accent-gray-900"
-              />
-              <div className="flex justify-between text-xs text-gray-300 mt-1">
-                <span>1s</span>
-                <span>10s</span>
+                className="w-full accent-gray-900" />
+              <div className="flex justify-between text-xs text-gray-300 mt-1"><span>1s</span><span>10s</span></div>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-2">
+                Transition type
+              </label>
+              <div className="flex gap-2">
+                {(["fade-black", "crossfade", "instant"] as const).map((t) => (
+                  <button key={t} type="button"
+                    onClick={() => setTransitionType(t)}
+                    className={`px-3 py-1.5 rounded-md text-xs border transition-colors ${transitionType === t ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-600 hover:border-gray-400"}`}>
+                    {t === "fade-black" ? "Fade to black" : t === "crossfade" ? "Crossfade" : "Instant cut"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {transitionType !== "instant" && (
+              <div>
+                <label className="block text-xs text-gray-500 mb-2">
+                  Fade duration: <span className="font-medium text-gray-700">{fadeDuration}ms</span>
+                </label>
+                <input type="range" min={100} max={1000} step={50} value={fadeDuration}
+                  onChange={(e) => setFadeDuration(parseInt(e.target.value))}
+                  className="w-full accent-gray-900" />
+                <div className="flex justify-between text-xs text-gray-300 mt-1"><span>100ms</span><span>1000ms</span></div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-2">
+                Zoom amount: <span className="font-medium text-gray-700">{zoomAmount.toFixed(1)}%</span>
+              </label>
+              <input type="range" min={0} max={5} step={0.5} value={zoomAmount}
+                onChange={(e) => setZoomAmount(parseFloat(e.target.value))}
+                className="w-full accent-gray-900" />
+              <div className="flex justify-between text-xs text-gray-300 mt-1"><span>0% (off)</span><span>5%</span></div>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-2">Zoom origin</label>
+              <div className="flex flex-col gap-2">
+                <button type="button"
+                  onClick={() => setZoomOrigin("random")}
+                  className={`w-full px-3 py-1.5 rounded-md text-xs border transition-colors text-left ${zoomOrigin === "random" ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-600 hover:border-gray-400"}`}>
+                  Random (different each panel)
+                </button>
+                <div className="grid grid-cols-3 gap-1 w-32">
+                  {[
+                    "20% 20%", "50% 20%", "80% 20%",
+                    "20% 50%", "50% 50%", "80% 50%",
+                    "20% 80%", "50% 80%", "80% 80%",
+                  ].map((o) => (
+                    <button key={o} type="button"
+                      onClick={() => setZoomOrigin(o)}
+                      title={o}
+                      className={`aspect-square rounded border-2 transition-colors ${zoomOrigin === o ? "bg-gray-900 border-gray-900" : "border-gray-200 hover:border-gray-400 bg-gray-50"}`}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400">
+                  {zoomOrigin === "random" ? "Random position" : `Fixed: ${zoomOrigin}`}
+                </p>
               </div>
             </div>
 

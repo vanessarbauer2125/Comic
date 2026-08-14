@@ -16,6 +16,10 @@ export interface Series {
   description: string | null;
   cover_panel_id: string | null;
   autoplay_speed: number;
+  fade_duration: number;
+  transition_type: string;
+  zoom_amount: number;
+  zoom_origin: string;
   created_at: string;
   updated_at: string;
   // joined

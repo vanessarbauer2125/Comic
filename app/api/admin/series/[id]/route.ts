@@ -49,7 +49,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { title, slug, description, autoplay_speed, cover_panel_id } = body;
+  const { title, slug, description, autoplay_speed, cover_panel_id, fade_duration, transition_type, zoom_amount, zoom_origin } = body;
 
   const updates: Record<string, unknown> = {};
   if (title !== undefined) updates.title = title;
@@ -58,6 +58,10 @@ export async function PUT(
   if (description !== undefined) updates.description = description;
   if (autoplay_speed !== undefined) updates.autoplay_speed = autoplay_speed;
   if (cover_panel_id !== undefined) updates.cover_panel_id = cover_panel_id;
+  if (fade_duration !== undefined) updates.fade_duration = fade_duration;
+  if (transition_type !== undefined) updates.transition_type = transition_type;
+  if (zoom_amount !== undefined) updates.zoom_amount = zoom_amount;
+  if (zoom_origin !== undefined) updates.zoom_origin = zoom_origin;
 
   const { data, error } = await supabase
     .from("series")

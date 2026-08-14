@@ -40,6 +40,10 @@ export default async function ComicPage({
       title={series.title}
       panels={panels}
       autospeed={series.autoplay_speed ?? 3.5}
+      fadeDuration={series.fade_duration ?? 400}
+      transitionType={series.transition_type ?? "fade-black"}
+      zoomAmount={series.zoom_amount ?? 2.5}
+      zoomOrigin={series.zoom_origin ?? "random"}
     />
   );
 }

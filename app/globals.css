@@ -26,6 +26,6 @@ body {
 }
 
 @keyframes kenburns {
-  from { transform: scale(1.025); }
+  from { transform: scale(var(--kb-scale, 1.025)); }
   to   { transform: scale(1.0); }
 }
