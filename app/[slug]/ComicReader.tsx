@@ -179,33 +179,32 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
 
       {/* Panel display */}
       <div
-        className="flex-1 flex items-center justify-center px-4 py-6 cursor-pointer overflow-hidden relative"
+        className="flex-1 flex items-center justify-center px-4 py-4 cursor-pointer relative"
+        style={{ minHeight: 0 }}
         onClick={goNext}
       >
         {/* Previous panel (crossfade only) */}
         {transitionType === "crossfade" && prev !== null && (() => {
           const prevPanel = panels[prev];
           const prevWidth = prevPanel.custom_width ?? defaultPanelWidth;
-          const prevHeight = prevPanel.custom_height ?? null;
           return (
-            <div className="absolute inset-0 flex items-center justify-center px-4 py-6">
-              <div
-                className="relative w-full overflow-hidden rounded-sm"
+            <div className="absolute inset-0 flex items-center justify-center px-4 py-4">
+              <Image
+                src={prevPanel.image_url}
+                alt={`Panel ${prev + 1}`}
+                width={1200}
+                height={900}
+                className="rounded-sm object-contain"
                 style={{
-                  maxWidth: prevWidth + "%",
-                  ...(prevHeight ? { maxHeight: prevHeight + "vh" } : {}),
+                  width: "auto",
+                  height: "auto",
+                  maxWidth: `${prevWidth}%`,
+                  maxHeight: "calc(100vh - 160px)",
+                  opacity: crossfadeIn ? 0 : 1,
+                  transition: `opacity ${fadeDuration}ms ease-in-out`,
                 }}
-              >
-                <Image
-                  src={prevPanel.image_url}
-                  alt={`Panel ${prev + 1}`}
-                  width={1200}
-                  height={900}
-                  className="w-full h-auto object-contain"
-                  style={{ opacity: crossfadeIn ? 0 : 1, transition: `opacity ${fadeDuration}ms ease-in-out` }}
-                  sizes="(max-width: 768px) 100vw, 768px"
-                />
-              </div>
+                sizes="100vw"
+              />
             </div>
           );
         })()}
@@ -214,31 +213,28 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
         {(() => {
           const curPanel = panels[current];
           const curWidth = curPanel.custom_width ?? defaultPanelWidth;
-          const curHeight = curPanel.custom_height ?? null;
           return (
-            <div
-              className="relative w-full overflow-hidden rounded-sm"
+            <Image
+              key={`${curPanel.id}-${originRef.current}`}
+              src={curPanel.image_url}
+              alt={`Panel ${current + 1}`}
+              width={1200}
+              height={900}
+              className="rounded-sm object-contain"
               style={{
-                maxWidth: curWidth + "%",
-                ...(curHeight ? { maxHeight: curHeight + "vh" } : {}),
+                width: "auto",
+                height: "auto",
+                maxWidth: `${curWidth}%`,
+                maxHeight: "calc(100vh - 160px)",
                 ...(transitionType === "crossfade" ? {
                   opacity: crossfadeIn ? 1 : (prev !== null ? 0 : 1),
                   transition: `opacity ${fadeDuration}ms ease-in-out`,
                 } : {}),
+                ...panelImageStyle,
               }}
-            >
-              <Image
-                key={`${curPanel.id}-${originRef.current}`}
-                src={curPanel.image_url}
-                alt={`Panel ${current + 1}`}
-                width={1200}
-                height={900}
-                className="w-full h-auto object-contain"
-                style={panelImageStyle}
-                priority
-                sizes="(max-width: 768px) 100vw, 768px"
-              />
-            </div>
+              priority
+              sizes="100vw"
+            />
           );
         })()}
 
