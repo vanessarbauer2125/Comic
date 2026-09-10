@@ -42,11 +42,11 @@ export async function POST(
 
   const { id } = await params;
 
-  const formData = await request.formData();
-  const files = formData.getAll("files") as File[];
+  // Accept pre-uploaded public URLs (files uploaded directly to Supabase storage)
+  const { publicUrls } = await request.json() as { publicUrls: string[] };
 
-  if (!files || files.length === 0) {
-    return NextResponse.json({ error: "No files provided" }, { status: 400 });
+  if (!publicUrls || publicUrls.length === 0) {
+    return NextResponse.json({ error: "No URLs provided" }, { status: 400 });
   }
 
   // Get current max display_order for this series
@@ -62,28 +62,7 @@ export async function POST(
   const results = [];
   const errors = [];
 
-  for (const file of files) {
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = new Uint8Array(arrayBuffer);
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const filename = `${id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("panels")
-      .upload(filename, buffer, {
-        contentType: file.type,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      errors.push({ file: file.name, error: uploadError.message });
-      continue;
-    }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("panels").getPublicUrl(filename);
-
+  for (const publicUrl of publicUrls) {
     const { data: panel, error: dbError } = await supabase
       .from("panels")
       .insert({
@@ -95,7 +74,7 @@ export async function POST(
       .single();
 
     if (dbError) {
-      errors.push({ file: file.name, error: dbError.message });
+      errors.push({ url: publicUrl, error: dbError.message });
     } else {
       results.push(panel);
     }

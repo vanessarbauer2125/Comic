@@ -346,20 +346,56 @@ export default function SeriesEditor({ series }: Props) {
     setUploadError("");
     setUploading(true);
 
-    const formData = new FormData();
-    Array.from(files).forEach((f) => formData.append("files", f));
-
     try {
-      const res = await fetch(`/api/admin/series/${series.id}/panels`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.panels?.length > 0) {
-        setPanels((prev) => [...prev, ...data.panels]);
+      // Step 1: get signed upload URLs from the server
+      const signedRes = await fetch(
+        `/api/admin/series/${series.id}/panels/signed-url`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            files: Array.from(files).map((f) => ({ name: f.name })),
+          }),
+        }
+      );
+      const { results: signedResults } = await signedRes.json();
+
+      // Step 2: upload each file directly to Supabase storage
+      const publicUrls: string[] = [];
+      let uploadErrors = 0;
+      await Promise.all(
+        Array.from(files).map(async (file, i) => {
+          const slot = signedResults[i];
+          if (slot.error) { uploadErrors++; return; }
+          const uploadRes = await fetch(slot.signedUrl, {
+            method: "PUT",
+            headers: { "Content-Type": file.type },
+            body: file,
+          });
+          if (!uploadRes.ok) { uploadErrors++; return; }
+          publicUrls.push(slot.publicUrl);
+        })
+      );
+
+      // Step 3: register the uploaded panels in the database
+      if (publicUrls.length > 0) {
+        const registerRes = await fetch(
+          `/api/admin/series/${series.id}/panels`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ publicUrls }),
+          }
+        );
+        const data = await registerRes.json();
+        if (data.panels?.length > 0) {
+          setPanels((prev) => [...prev, ...data.panels]);
+        }
+        if (data.errors?.length > 0) uploadErrors += data.errors.length;
       }
-      if (data.errors?.length > 0) {
-        setUploadError(`${data.errors.length} file(s) failed to upload.`);
+
+      if (uploadErrors > 0) {
+        setUploadError(`${uploadErrors} file(s) failed to upload.`);
       }
     } catch {
       setUploadError("Upload failed. Please try again.");
