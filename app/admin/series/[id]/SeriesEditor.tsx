@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,6 +24,49 @@ import { CAPTION_FONTS } from "@/lib/fonts";
 
 interface Props {
   series: Series & { panels: Panel[] };
+}
+
+function FontPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = CAPTION_FONTS.find((f) => f.value === value) ?? CAPTION_FONTS[0];
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 bg-white text-left flex items-center justify-between focus:outline-none focus:ring-1 focus:ring-gray-400"
+        style={{ fontFamily: selected.value }}
+      >
+        {selected.label}
+        <span className="text-gray-400 ml-1">▾</span>
+      </button>
+      {open && (
+        <div className="absolute z-50 bottom-full mb-1 left-0 w-full bg-white border border-gray-200 rounded shadow-lg max-h-48 overflow-y-auto">
+          {CAPTION_FONTS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => { onChange(f.value); setOpen(false); }}
+              className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-50 ${value === f.value ? "bg-gray-100" : ""}`}
+              style={{ fontFamily: f.value }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface SortablePanelProps {
@@ -339,17 +382,10 @@ function SortablePanel({
                   className="w-10 px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
                 />
               </div>
-              <select
+              <FontPicker
                 value={captionFontFamily}
-                onChange={(e) => { setCaptionFontFamily(e.target.value); saveCaption(captionInput, captionPosition, captionFontSize, e.target.value); }}
-                className="w-full px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
-              >
-                {CAPTION_FONTS.map((f) => (
-                  <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => { setCaptionFontFamily(val); saveCaption(captionInput, captionPosition, captionFontSize, val); }}
+              />
             </div>
           )}
         </div>
