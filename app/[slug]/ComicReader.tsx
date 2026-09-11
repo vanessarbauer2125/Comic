@@ -213,7 +213,11 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
         {(() => {
           const curPanel = panels[current];
           const curWidth = curPanel.custom_width ?? defaultPanelWidth;
-          return (
+          const caption = curPanel.caption;
+          const captionPos = curPanel.caption_position ?? "bottom";
+          const captionSize = curPanel.caption_font_size ?? 16;
+
+          const img = (
             <Image
               key={`${curPanel.id}-${originRef.current}`}
               src={curPanel.image_url}
@@ -235,6 +239,31 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
               priority
               sizes="100vw"
             />
+          );
+
+          if (!caption) return img;
+
+          const isHorizontal = captionPos === "left" || captionPos === "right";
+          const captionEl = (
+            <p
+              style={{ fontSize: captionSize }}
+              className={`text-white/90 leading-snug whitespace-pre-wrap px-2 py-1 shrink-0 ${
+                isHorizontal ? "max-w-[20%] self-center" : "text-center w-full"
+              }`}
+            >
+              {caption}
+            </p>
+          );
+
+          return (
+            <div
+              className={`flex ${isHorizontal ? "flex-row" : "flex-col"} items-center gap-2`}
+              style={{ maxWidth: `${curWidth}%` }}
+            >
+              {(captionPos === "top" || captionPos === "left") && captionEl}
+              {img}
+              {(captionPos === "bottom" || captionPos === "right") && captionEl}
+            </div>
           );
         })()}
 

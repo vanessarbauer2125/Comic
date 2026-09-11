@@ -24,6 +24,9 @@ export async function PUT(
   const updates: Record<string, unknown> = {};
   if (body.custom_width !== undefined) updates.custom_width = body.custom_width;
   if (body.custom_height !== undefined) updates.custom_height = body.custom_height;
+  if (body.caption !== undefined) updates.caption = body.caption;
+  if (body.caption_position !== undefined) updates.caption_position = body.caption_position;
+  if (body.caption_font_size !== undefined) updates.caption_font_size = body.caption_font_size;
 
   const { data, error } = await supabase
     .from("panels")

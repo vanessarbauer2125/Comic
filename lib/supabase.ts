@@ -36,5 +36,8 @@ export interface Panel {
   display_order: number;
   custom_width: number | null;
   custom_height: number | null;
+  caption: string | null;
+  caption_position: "top" | "bottom" | "left" | "right";
+  caption_font_size: number;
   created_at: string;
 }

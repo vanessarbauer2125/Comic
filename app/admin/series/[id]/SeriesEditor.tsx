@@ -32,7 +32,7 @@ interface SortablePanelProps {
   onDelete: (id: string) => void;
   deleting: boolean;
   seriesId: string;
-  onPanelUpdate: (panelId: string, width: number | null, height: number | null) => void;
+  onPanelUpdate: (panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number) => void;
 }
 
 function SortablePanel({
@@ -51,6 +51,9 @@ function SortablePanel({
   const [localHeight, setLocalHeight] = useState<number | null>(panel.custom_height ?? null);
   const [widthInput, setWidthInput] = useState(panel.custom_width != null ? String(panel.custom_width) : "");
   const [heightInput, setHeightInput] = useState(panel.custom_height != null ? String(panel.custom_height) : "");
+  const [captionInput, setCaptionInput] = useState(panel.caption ?? "");
+  const [captionPosition, setCaptionPosition] = useState<string>(panel.caption_position ?? "bottom");
+  const [captionFontSize, setCaptionFontSize] = useState(panel.caption_font_size ?? 16);
 
   const dragStateRef = useRef<{
     dragging: boolean;
@@ -78,6 +81,23 @@ function SortablePanel({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ custom_width: width, custom_height: height }),
+      });
+    } catch {
+      // silent
+    }
+  }
+
+  async function saveCaption(caption: string, position: string, fontSize: number) {
+    onPanelUpdate(panel.id, localWidth, localHeight, caption || null, position, fontSize);
+    try {
+      await fetch(`/api/admin/series/${seriesId}/panels/${panel.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          caption: caption || null,
+          caption_position: position,
+          caption_font_size: fontSize,
+        }),
       });
     } catch {
       // silent
@@ -281,6 +301,42 @@ function SortablePanel({
           />
           {heightInput && <span className="text-[10px] text-gray-400">%</span>}
         </div>
+
+        {/* Caption */}
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity space-y-1">
+          <textarea
+            value={captionInput}
+            onChange={(e) => setCaptionInput(e.target.value)}
+            onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize)}
+            placeholder="Caption (optional)"
+            rows={2}
+            className="w-full px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 resize-none"
+          />
+          {captionInput && (
+            <div className="flex items-center gap-1.5">
+              <select
+                value={captionPosition}
+                onChange={(e) => { setCaptionPosition(e.target.value); saveCaption(captionInput, e.target.value, captionFontSize); }}
+                className="px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              >
+                <option value="bottom">Bottom</option>
+                <option value="top">Top</option>
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+              </select>
+              <label className="text-[10px] text-gray-400">px:</label>
+              <input
+                type="number"
+                min={8}
+                max={72}
+                value={captionFontSize}
+                onChange={(e) => setCaptionFontSize(Number(e.target.value))}
+                onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize)}
+                className="w-10 px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -465,10 +521,17 @@ export default function SeriesEditor({ series }: Props) {
     }
   }
 
-  function handlePanelUpdate(panelId: string, width: number | null, height: number | null) {
+  function handlePanelUpdate(panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number) {
     setPanels((prev) =>
       prev.map((p) =>
-        p.id === panelId ? { ...p, custom_width: width, custom_height: height } : p
+        p.id === panelId ? {
+          ...p,
+          custom_width: width,
+          custom_height: height,
+          ...(caption !== undefined ? { caption } : {}),
+          ...(captionPosition !== undefined ? { caption_position: captionPosition as Panel["caption_position"] } : {}),
+          ...(captionFontSize !== undefined ? { caption_font_size: captionFontSize } : {}),
+        } : p
       )
     );
   }
