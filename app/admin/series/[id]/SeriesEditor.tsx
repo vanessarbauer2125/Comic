@@ -20,6 +20,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Series, Panel } from "@/lib/supabase";
+import { CAPTION_FONTS } from "@/lib/fonts";
 
 interface Props {
   series: Series & { panels: Panel[] };
@@ -32,7 +33,7 @@ interface SortablePanelProps {
   onDelete: (id: string) => void;
   deleting: boolean;
   seriesId: string;
-  onPanelUpdate: (panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number) => void;
+  onPanelUpdate: (panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number, captionFontFamily?: string) => void;
 }
 
 function SortablePanel({
@@ -54,6 +55,7 @@ function SortablePanel({
   const [captionInput, setCaptionInput] = useState(panel.caption ?? "");
   const [captionPosition, setCaptionPosition] = useState<string>(panel.caption_position ?? "bottom");
   const [captionFontSize, setCaptionFontSize] = useState(panel.caption_font_size ?? 16);
+  const [captionFontFamily, setCaptionFontFamily] = useState(panel.caption_font_family ?? CAPTION_FONTS[0].value);
 
   const dragStateRef = useRef<{
     dragging: boolean;
@@ -87,8 +89,8 @@ function SortablePanel({
     }
   }
 
-  async function saveCaption(caption: string, position: string, fontSize: number) {
-    onPanelUpdate(panel.id, localWidth, localHeight, caption || null, position, fontSize);
+  async function saveCaption(caption: string, position: string, fontSize: number, fontFamily: string) {
+    onPanelUpdate(panel.id, localWidth, localHeight, caption || null, position, fontSize, fontFamily);
     try {
       await fetch(`/api/admin/series/${seriesId}/panels/${panel.id}`, {
         method: "PUT",
@@ -97,6 +99,7 @@ function SortablePanel({
           caption: caption || null,
           caption_position: position,
           caption_font_size: fontSize,
+          caption_font_family: fontFamily,
         }),
       });
     } catch {
@@ -307,33 +310,46 @@ function SortablePanel({
           <textarea
             value={captionInput}
             onChange={(e) => setCaptionInput(e.target.value)}
-            onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize)}
+            onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize, captionFontFamily)}
             placeholder="Caption (optional)"
             rows={2}
             className="w-full px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 resize-none"
           />
           {captionInput && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={captionPosition}
+                  onChange={(e) => { setCaptionPosition(e.target.value); saveCaption(captionInput, e.target.value, captionFontSize, captionFontFamily); }}
+                  className="px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                >
+                  <option value="bottom">Bottom</option>
+                  <option value="top">Top</option>
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
+                <label className="text-[10px] text-gray-400">px:</label>
+                <input
+                  type="number"
+                  min={8}
+                  max={72}
+                  value={captionFontSize}
+                  onChange={(e) => setCaptionFontSize(Number(e.target.value))}
+                  onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize, captionFontFamily)}
+                  className="w-10 px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                />
+              </div>
               <select
-                value={captionPosition}
-                onChange={(e) => { setCaptionPosition(e.target.value); saveCaption(captionInput, e.target.value, captionFontSize); }}
-                className="px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                value={captionFontFamily}
+                onChange={(e) => { setCaptionFontFamily(e.target.value); saveCaption(captionInput, captionPosition, captionFontSize, e.target.value); }}
+                className="w-full px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
               >
-                <option value="bottom">Bottom</option>
-                <option value="top">Top</option>
-                <option value="left">Left</option>
-                <option value="right">Right</option>
+                {CAPTION_FONTS.map((f) => (
+                  <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                    {f.label}
+                  </option>
+                ))}
               </select>
-              <label className="text-[10px] text-gray-400">px:</label>
-              <input
-                type="number"
-                min={8}
-                max={72}
-                value={captionFontSize}
-                onChange={(e) => setCaptionFontSize(Number(e.target.value))}
-                onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize)}
-                className="w-10 px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
-              />
             </div>
           )}
         </div>
@@ -521,7 +537,7 @@ export default function SeriesEditor({ series }: Props) {
     }
   }
 
-  function handlePanelUpdate(panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number) {
+  function handlePanelUpdate(panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number, captionFontFamily?: string) {
     setPanels((prev) =>
       prev.map((p) =>
         p.id === panelId ? {
@@ -531,6 +547,7 @@ export default function SeriesEditor({ series }: Props) {
           ...(caption !== undefined ? { caption } : {}),
           ...(captionPosition !== undefined ? { caption_position: captionPosition as Panel["caption_position"] } : {}),
           ...(captionFontSize !== undefined ? { caption_font_size: captionFontSize } : {}),
+          ...(captionFontFamily !== undefined ? { caption_font_family: captionFontFamily } : {}),
         } : p
       )
     );
