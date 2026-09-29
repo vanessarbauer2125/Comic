@@ -40,5 +40,6 @@ export interface Panel {
   caption_position: "top" | "bottom" | "left" | "right";
   caption_font_size: number;
   caption_font_family: string;
+  caption_color: string | null;
   created_at: string;
 }

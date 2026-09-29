@@ -217,6 +217,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
           const captionPos = curPanel.caption_position ?? "bottom";
           const captionSize = curPanel.caption_font_size ?? 16;
           const captionFont = curPanel.caption_font_family ?? "var(--font-geist-sans)";
+          const captionColor = curPanel.caption_color ?? "#ffffff";
 
           const img = (
             <Image
@@ -247,8 +248,8 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
           const isHorizontal = captionPos === "left" || captionPos === "right";
           const captionEl = (
             <p
-              style={{ fontSize: captionSize, fontFamily: captionFont }}
-              className={`text-white/90 leading-snug whitespace-pre-wrap px-2 py-1 shrink-0 ${
+              style={{ fontSize: captionSize, fontFamily: captionFont, color: captionColor }}
+              className={`leading-snug whitespace-pre-wrap px-2 py-1 shrink-0 ${
                 isHorizontal ? "max-w-[20%] self-center" : "text-center w-full"
               }`}
             >

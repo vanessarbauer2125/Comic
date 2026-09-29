@@ -76,7 +76,7 @@ interface SortablePanelProps {
   onDelete: (id: string) => void;
   deleting: boolean;
   seriesId: string;
-  onPanelUpdate: (panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number, captionFontFamily?: string) => void;
+  onPanelUpdate: (panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number, captionFontFamily?: string, captionColor?: string | null) => void;
 }
 
 function SortablePanel({
@@ -99,6 +99,7 @@ function SortablePanel({
   const [captionPosition, setCaptionPosition] = useState<string>(panel.caption_position ?? "bottom");
   const [captionFontSize, setCaptionFontSize] = useState(panel.caption_font_size ?? 16);
   const [captionFontFamily, setCaptionFontFamily] = useState(panel.caption_font_family ?? CAPTION_FONTS[0].value);
+  const [captionColor, setCaptionColor] = useState(panel.caption_color ?? "#ffffff");
 
   const dragStateRef = useRef<{
     dragging: boolean;
@@ -132,8 +133,8 @@ function SortablePanel({
     }
   }
 
-  async function saveCaption(caption: string, position: string, fontSize: number, fontFamily: string) {
-    onPanelUpdate(panel.id, localWidth, localHeight, caption || null, position, fontSize, fontFamily);
+  async function saveCaption(caption: string, position: string, fontSize: number, fontFamily: string, color: string) {
+    onPanelUpdate(panel.id, localWidth, localHeight, caption || null, position, fontSize, fontFamily, color);
     try {
       await fetch(`/api/admin/series/${seriesId}/panels/${panel.id}`, {
         method: "PUT",
@@ -143,6 +144,7 @@ function SortablePanel({
           caption_position: position,
           caption_font_size: fontSize,
           caption_font_family: fontFamily,
+          caption_color: color,
         }),
       });
     } catch {
@@ -353,7 +355,7 @@ function SortablePanel({
           <textarea
             value={captionInput}
             onChange={(e) => setCaptionInput(e.target.value)}
-            onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize, captionFontFamily)}
+            onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize, captionFontFamily, captionColor)}
             placeholder="Caption (optional)"
             rows={2}
             className="w-full px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 resize-none"
@@ -363,7 +365,7 @@ function SortablePanel({
               <div className="flex items-center gap-1.5">
                 <select
                   value={captionPosition}
-                  onChange={(e) => { setCaptionPosition(e.target.value); saveCaption(captionInput, e.target.value, captionFontSize, captionFontFamily); }}
+                  onChange={(e) => { setCaptionPosition(e.target.value); saveCaption(captionInput, e.target.value, captionFontSize, captionFontFamily, captionColor); }}
                   className="px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
                 >
                   <option value="bottom">Bottom</option>
@@ -378,14 +380,31 @@ function SortablePanel({
                   max={72}
                   value={captionFontSize}
                   onChange={(e) => setCaptionFontSize(Number(e.target.value))}
-                  onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize, captionFontFamily)}
+                  onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize, captionFontFamily, captionColor)}
                   className="w-10 px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
                 />
               </div>
               <FontPicker
                 value={captionFontFamily}
-                onChange={(val) => { setCaptionFontFamily(val); saveCaption(captionInput, captionPosition, captionFontSize, val); }}
+                onChange={(val) => { setCaptionFontFamily(val); saveCaption(captionInput, captionPosition, captionFontSize, val, captionColor); }}
               />
+              <div className="flex items-center gap-1.5">
+                <label className="text-[10px] text-gray-400">Color:</label>
+                <input
+                  type="color"
+                  value={captionColor}
+                  onChange={(e) => setCaptionColor(e.target.value)}
+                  onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize, captionFontFamily, captionColor)}
+                  className="w-6 h-6 rounded cursor-pointer border border-gray-200 p-0.5"
+                />
+                <input
+                  type="text"
+                  value={captionColor}
+                  onChange={(e) => setCaptionColor(e.target.value)}
+                  onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize, captionFontFamily, captionColor)}
+                  className="w-16 px-1 py-0.5 border border-gray-200 rounded text-[10px] font-mono text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                />
+              </div>
             </div>
           )}
         </div>
@@ -573,7 +592,7 @@ export default function SeriesEditor({ series }: Props) {
     }
   }
 
-  function handlePanelUpdate(panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number, captionFontFamily?: string) {
+  function handlePanelUpdate(panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number, captionFontFamily?: string, captionColor?: string | null) {
     setPanels((prev) =>
       prev.map((p) =>
         p.id === panelId ? {
@@ -584,6 +603,7 @@ export default function SeriesEditor({ series }: Props) {
           ...(captionPosition !== undefined ? { caption_position: captionPosition as Panel["caption_position"] } : {}),
           ...(captionFontSize !== undefined ? { caption_font_size: captionFontSize } : {}),
           ...(captionFontFamily !== undefined ? { caption_font_family: captionFontFamily } : {}),
+          ...(captionColor !== undefined ? { caption_color: captionColor } : {}),
         } : p
       )
     );

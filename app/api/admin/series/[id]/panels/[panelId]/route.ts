@@ -28,6 +28,7 @@ export async function PUT(
   if (body.caption_position !== undefined) updates.caption_position = body.caption_position;
   if (body.caption_font_size !== undefined) updates.caption_font_size = body.caption_font_size;
   if (body.caption_font_family !== undefined) updates.caption_font_family = body.caption_font_family;
+  if (body.caption_color !== undefined) updates.caption_color = body.caption_color;
 
   const { data, error } = await supabase
     .from("panels")
