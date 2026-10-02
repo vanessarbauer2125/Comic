@@ -169,7 +169,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
   };
 
   return (
-    <div className="min-h-screen flex flex-col select-none" style={{ backgroundColor: bgColor }}>
+    <div className="h-screen overflow-hidden flex flex-col select-none" style={{ backgroundColor: bgColor }}>
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
         <Link href="/" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">← All Comics</Link>
@@ -218,6 +218,8 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
           const captionSize = curPanel.caption_font_size ?? 16;
           const captionFont = curPanel.caption_font_family ?? "var(--font-geist-sans)";
           const captionColor = curPanel.caption_color ?? "#ffffff";
+          const isVerticalCaption = caption && (captionPos === "top" || captionPos === "bottom");
+          const imgMaxHeight = isVerticalCaption ? "calc(100vh - 240px)" : "calc(100vh - 160px)";
 
           const img = (
             <Image
@@ -231,7 +233,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
                 width: "auto",
                 height: "auto",
                 maxWidth: `${curWidth}%`,
-                maxHeight: "calc(100vh - 160px)",
+                maxHeight: imgMaxHeight,
                 ...(transitionType === "crossfade" ? {
                   opacity: crossfadeIn ? 1 : (prev !== null ? 0 : 1),
                   transition: `opacity ${fadeDuration}ms ease-in-out`,
