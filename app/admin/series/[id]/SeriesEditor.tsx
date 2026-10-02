@@ -283,13 +283,19 @@ function SortablePanel({
       )}
 
       <div className="aspect-[4/3] relative" ref={thumbnailRef}>
-        <Image
-          src={panel.image_url}
-          alt={`Panel ${panel.display_order + 1}`}
-          fill
-          className="object-cover"
-          sizes="(max-width: 640px) 50vw, 33vw"
-        />
+        {panel.image_url ? (
+          <Image
+            src={panel.image_url}
+            alt={`Panel ${panel.display_order + 1}`}
+            fill
+            className="object-cover"
+            sizes="(max-width: 640px) 50vw, 33vw"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+            <span className="text-3xl text-gray-300 select-none">T</span>
+          </div>
+        )}
         {/* Corner resize handles */}
         {(["tl", "tr", "bl", "br"] as const).map((corner) => (
           <div
@@ -351,7 +357,7 @@ function SortablePanel({
         </div>
 
         {/* Caption */}
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity space-y-1">
+        <div className={`${panel.image_url ? "opacity-0 group-hover:opacity-100 transition-opacity" : ""} space-y-1`}>
           <textarea
             value={captionInput}
             onChange={(e) => setCaptionInput(e.target.value)}
@@ -609,6 +615,22 @@ export default function SeriesEditor({ series }: Props) {
     );
   }
 
+  async function handleAddTextPanel() {
+    try {
+      const res = await fetch(`/api/admin/series/${series.id}/panels`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ captionOnly: true }),
+      });
+      const data = await res.json();
+      if (data.panel) {
+        setPanels((prev) => [...prev, data.panel]);
+      }
+    } catch {
+      // silent
+    }
+  }
+
   async function handleDeleteSeries() {
     if (!confirm(`Delete "${series.title}"? This cannot be undone.`)) return;
     try {
@@ -863,6 +885,13 @@ export default function SeriesEditor({ series }: Props) {
                 className="hidden"
                 id="panel-upload"
               />
+              <button
+                type="button"
+                onClick={handleAddTextPanel}
+                className="text-sm px-4 py-2 border border-gray-200 rounded-md text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition-colors"
+              >
+                Add text panel
+              </button>
               <label
                 htmlFor="panel-upload"
                 className={`cursor-pointer text-sm px-4 py-2 border border-gray-200 rounded-md text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition-colors ${

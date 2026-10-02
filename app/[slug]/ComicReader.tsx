@@ -187,6 +187,17 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
         {transitionType === "crossfade" && prev !== null && (() => {
           const prevPanel = panels[prev];
           const prevWidth = prevPanel.custom_width ?? defaultPanelWidth;
+          const fadeStyle = { opacity: crossfadeIn ? 0 : 1, transition: `opacity ${fadeDuration}ms ease-in-out` };
+          if (!prevPanel.image_url) {
+            return (
+              <div className="absolute inset-0 flex items-center justify-center px-8" style={fadeStyle}>
+                <p style={{ fontSize: prevPanel.caption_font_size ?? 16, fontFamily: prevPanel.caption_font_family ?? "var(--font-geist-sans)", color: prevPanel.caption_color ?? "#ffffff" }}
+                   className="text-center leading-relaxed whitespace-pre-wrap max-w-2xl">
+                  {prevPanel.caption}
+                </p>
+              </div>
+            );
+          }
           return (
             <div className="absolute inset-0 flex items-center justify-center px-4 py-4">
               <Image
@@ -200,8 +211,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
                   height: "auto",
                   maxWidth: `${prevWidth}%`,
                   maxHeight: "calc(100vh - 160px)",
-                  opacity: crossfadeIn ? 0 : 1,
-                  transition: `opacity ${fadeDuration}ms ease-in-out`,
+                  ...fadeStyle,
                 }}
                 sizes="100vw"
               />
@@ -220,6 +230,28 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
           const captionColor = curPanel.caption_color ?? "#ffffff";
           const isVerticalCaption = caption && (captionPos === "top" || captionPos === "bottom");
           const imgMaxHeight = isVerticalCaption ? "calc(100vh - 240px)" : "calc(100vh - 160px)";
+
+          // Caption-only panel (no image)
+          if (!curPanel.image_url) {
+            return (
+              <div
+                className="flex items-center justify-center w-full h-full px-8"
+                style={{
+                  ...(transitionType === "crossfade" ? {
+                    opacity: crossfadeIn ? 1 : (prev !== null ? 0 : 1),
+                    transition: `opacity ${fadeDuration}ms ease-in-out`,
+                  } : {}),
+                }}
+              >
+                <p
+                  style={{ fontSize: captionSize, fontFamily: captionFont, color: captionColor }}
+                  className="text-center leading-relaxed whitespace-pre-wrap max-w-2xl"
+                >
+                  {caption}
+                </p>
+              </div>
+            );
+          }
 
           const img = (
             <Image

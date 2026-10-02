@@ -32,7 +32,7 @@ export interface Series {
 export interface Panel {
   id: string;
   series_id: string;
-  image_url: string;
+  image_url: string | null;
   display_order: number;
   custom_width: number | null;
   custom_height: number | null;

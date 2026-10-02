@@ -42,12 +42,7 @@ export async function POST(
 
   const { id } = await params;
 
-  // Accept pre-uploaded public URLs (files uploaded directly to Supabase storage)
-  const { publicUrls } = await request.json() as { publicUrls: string[] };
-
-  if (!publicUrls || publicUrls.length === 0) {
-    return NextResponse.json({ error: "No URLs provided" }, { status: 400 });
-  }
+  const body = await request.json() as { publicUrls?: string[]; captionOnly?: boolean };
 
   // Get current max display_order for this series
   const { data: existing } = await supabase
@@ -57,8 +52,27 @@ export async function POST(
     .order("display_order", { ascending: false })
     .limit(1);
 
-  let nextOrder = (existing?.[0]?.display_order ?? -1) + 1;
+  const nextOrder = (existing?.[0]?.display_order ?? -1) + 1;
 
+  // Caption-only panel (no image)
+  if (body.captionOnly) {
+    const { data: panel, error } = await supabase
+      .from("panels")
+      .insert({ series_id: id, image_url: null, display_order: nextOrder })
+      .select()
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ panel }, { status: 201 });
+  }
+
+  // Image panels
+  const { publicUrls } = body;
+  if (!publicUrls || publicUrls.length === 0) {
+    return NextResponse.json({ error: "No URLs provided" }, { status: 400 });
+  }
+
+  let order = nextOrder;
   const results = [];
   const errors = [];
 
@@ -68,7 +82,7 @@ export async function POST(
       .insert({
         series_id: id,
         image_url: publicUrl,
-        display_order: nextOrder++,
+        display_order: order++,
       })
       .select()
       .single();
