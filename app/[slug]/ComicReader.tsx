@@ -293,7 +293,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
 
           return (
             <div
-              className={`flex ${isHorizontal ? "flex-row" : "flex-col"} items-center gap-2`}
+              className={`flex ${isHorizontal ? "flex-row w-full justify-center" : "flex-col"} items-center gap-8`}
               style={isHorizontal ? undefined : { maxWidth: `${curWidth}%` }}
             >
               {(captionPos === "top" || captionPos === "left") && captionEl}
