@@ -33,6 +33,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
   const [prev, setPrev] = useState<number | null>(null);
   const [playing, setPlaying] = useState(true);
   const [overlayOpacity, setOverlayOpacity] = useState(0); // for fade-black
+  const [overlayTransition, setOverlayTransition] = useState(fadeDuration); // dynamic fade-black duration
   const [crossfadeIn, setCrossfadeIn] = useState(false);    // for crossfade
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transitioningRef = useRef(false);
@@ -43,7 +44,9 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
     if (transitioningRef.current || nextIndex === current) return;
     transitioningRef.current = true;
 
-    const effectiveFade = panels[current].fade_duration ?? fadeDuration;
+    const curPanel = panels[current];
+    const effectiveFadeOut = curPanel.fade_out_duration ?? fadeDuration;
+    const effectiveFadeIn = curPanel.fade_in_duration ?? fadeDuration;
 
     if (transitionType === "instant") {
       originRef.current = pickOrigin(zoomOrigin);
@@ -63,22 +66,24 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
           setTimeout(() => {
             setPrev(null);
             transitioningRef.current = false;
-          }, effectiveFade);
+          }, Math.max(effectiveFadeIn, effectiveFadeOut));
         });
       });
       return;
     }
 
-    // fade-black (default)
+    // fade-black: fade out then fade in
+    setOverlayTransition(effectiveFadeOut);
     setOverlayOpacity(1);
     setTimeout(() => {
       originRef.current = pickOrigin(zoomOrigin);
       setCurrent(nextIndex);
+      setOverlayTransition(effectiveFadeIn);
       setTimeout(() => {
         setOverlayOpacity(0);
         transitioningRef.current = false;
-      }, effectiveFade);
-    }, effectiveFade);
+      }, effectiveFadeIn);
+    }, effectiveFadeOut);
   }, [current, fadeDuration, panels, transitionType, zoomOrigin]);
 
   const goNext = useCallback(() => {
@@ -104,7 +109,8 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
           if (!transitioningRef.current) {
             transitioningRef.current = true;
 
-            const effectiveFade = panels[c].fade_duration ?? fadeDuration;
+            const efo = panels[c].fade_out_duration ?? fadeDuration;
+            const efi = panels[c].fade_in_duration ?? fadeDuration;
 
             if (transitionType === "instant") {
               originRef.current = pickOrigin(zoomOrigin);
@@ -121,19 +127,21 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
                   setTimeout(() => {
                     setPrev(null);
                     transitioningRef.current = false;
-                  }, effectiveFade);
+                  }, Math.max(efi, efo));
                 });
               });
             } else {
+              setOverlayTransition(efo);
               setOverlayOpacity(1);
               setTimeout(() => {
                 originRef.current = pickOrigin(zoomOrigin);
                 setCurrent(next);
+                setOverlayTransition(efi);
                 setTimeout(() => {
                   setOverlayOpacity(0);
                   transitioningRef.current = false;
-                }, effectiveFade);
-              }, effectiveFade);
+                }, efi);
+              }, efo);
             }
           }
           return c;
@@ -190,8 +198,8 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
         {transitionType === "crossfade" && prev !== null && (() => {
           const prevPanel = panels[prev];
           const prevWidth = prevPanel.custom_width ?? defaultPanelWidth;
-          const prevFade = prevPanel.fade_duration ?? fadeDuration;
-          const fadeStyle = { opacity: crossfadeIn ? 0 : 1, transition: `opacity ${prevFade}ms ease-in-out` };
+          const prevFadeOut = prevPanel.fade_out_duration ?? fadeDuration;
+          const fadeStyle = { opacity: crossfadeIn ? 0 : 1, transition: `opacity ${prevFadeOut}ms ease-in-out` };
           if (!prevPanel.image_url) {
             return (
               <div className="absolute inset-0 flex items-center justify-center px-8" style={fadeStyle}>
@@ -243,7 +251,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
                 style={{
                   ...(transitionType === "crossfade" ? {
                     opacity: crossfadeIn ? 1 : (prev !== null ? 0 : 1),
-                    transition: `opacity ${fadeDuration}ms ease-in-out`,
+                    transition: `opacity ${curPanel.fade_in_duration ?? fadeDuration}ms ease-in-out`,
                   } : {}),
                 }}
               >
@@ -272,7 +280,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
                 maxHeight: imgMaxHeight,
                 ...(transitionType === "crossfade" ? {
                   opacity: crossfadeIn ? 1 : (prev !== null ? 0 : 1),
-                  transition: `opacity ${fadeDuration}ms ease-in-out`,
+                  transition: `opacity ${curPanel.fade_in_duration ?? fadeDuration}ms ease-in-out`,
                 } : {}),
                 ...panelImageStyle,
               }}
@@ -311,7 +319,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
         {transitionType === "fade-black" && (
           <div
             className="absolute inset-0 pointer-events-none"
-            style={{ backgroundColor: bgColor, opacity: overlayOpacity, transition: `opacity ${fadeDuration}ms ease-in-out` }}
+            style={{ backgroundColor: bgColor, opacity: overlayOpacity, transition: `opacity ${overlayTransition}ms ease-in-out` }}
           />
         )}
       </div>

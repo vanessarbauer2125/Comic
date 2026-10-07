@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -76,7 +77,7 @@ interface SortablePanelProps {
   onDelete: (id: string) => void;
   deleting: boolean;
   seriesId: string;
-  onPanelUpdate: (panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number, captionFontFamily?: string, captionColor?: string | null, fadeDuration?: number | null) => void;
+  onPanelUpdate: (panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number, captionFontFamily?: string, captionColor?: string | null, fadeIn?: number | null, fadeOut?: number | null) => void;
 }
 
 function SortablePanel({
@@ -91,6 +92,7 @@ function SortablePanel({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: panel.id });
 
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [localWidth, setLocalWidth] = useState<number | null>(panel.custom_width ?? null);
   const [localHeight, setLocalHeight] = useState<number | null>(panel.custom_height ?? null);
   const [widthInput, setWidthInput] = useState(panel.custom_width != null ? String(panel.custom_width) : "");
@@ -100,338 +102,231 @@ function SortablePanel({
   const [captionFontSize, setCaptionFontSize] = useState(panel.caption_font_size ?? 16);
   const [captionFontFamily, setCaptionFontFamily] = useState(panel.caption_font_family ?? CAPTION_FONTS[0].value);
   const [captionColor, setCaptionColor] = useState(panel.caption_color ?? "#ffffff");
-  const [panelFadeDuration, setPanelFadeDuration] = useState<number | null>(panel.fade_duration ?? null);
+  const [fadeIn, setFadeIn] = useState<number | null>(panel.fade_in_duration ?? null);
+  const [fadeOut, setFadeOut] = useState<number | null>(panel.fade_out_duration ?? null);
 
-  const dragStateRef = useRef<{
-    dragging: boolean;
-    corner: "tl" | "tr" | "bl" | "br";
-    startX: number;
-    startY: number;
-    startW: number;
-    startH: number | null;
-    currentW: number;
-    currentH: number | null;
-  } | null>(null);
   const thumbnailRef = useRef<HTMLDivElement>(null);
 
-  const style = {
+  const cardStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 10 : undefined,
   };
 
-  async function savePanel(width: number | null, height: number | null) {
-    onPanelUpdate(panel.id, width, height);
-    try {
-      await fetch(`/api/admin/series/${seriesId}/panels/${panel.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ custom_width: width, custom_height: height }),
-      });
-    } catch {
-      // silent
-    }
-  }
+  async function saveAll(overrides: Partial<{
+    width: number | null; height: number | null;
+    caption: string; position: string; fontSize: number; fontFamily: string; color: string;
+    fi: number | null; fo: number | null;
+  }> = {}) {
+    const width = overrides.width !== undefined ? overrides.width : localWidth;
+    const height = overrides.height !== undefined ? overrides.height : localHeight;
+    const caption = overrides.caption !== undefined ? overrides.caption : captionInput;
+    const position = overrides.position ?? captionPosition;
+    const fontSize = overrides.fontSize ?? captionFontSize;
+    const fontFamily = overrides.fontFamily ?? captionFontFamily;
+    const color = overrides.color ?? captionColor;
+    const fi = overrides.fi !== undefined ? overrides.fi : fadeIn;
+    const fo = overrides.fo !== undefined ? overrides.fo : fadeOut;
 
-  async function saveCaption(caption: string, position: string, fontSize: number, fontFamily: string, color: string, fadeDur: number | null) {
-    onPanelUpdate(panel.id, localWidth, localHeight, caption || null, position, fontSize, fontFamily, color, fadeDur);
+    onPanelUpdate(panel.id, width, height, caption || null, position, fontSize, fontFamily, color, fi, fo);
     try {
       await fetch(`/api/admin/series/${seriesId}/panels/${panel.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          custom_width: width,
+          custom_height: height,
           caption: caption || null,
           caption_position: position,
           caption_font_size: fontSize,
           caption_font_family: fontFamily,
           caption_color: color,
-          fade_duration: fadeDur,
+          fade_in_duration: fi,
+          fade_out_duration: fo,
         }),
       });
-    } catch {
-      // silent
-    }
+    } catch { /* silent */ }
   }
 
+  const cornerCursors = { tl: "cursor-nw-resize", tr: "cursor-ne-resize", bl: "cursor-sw-resize", br: "cursor-se-resize" };
+  const cornerPositions = { tl: "top-0 left-0", tr: "top-0 right-0", bl: "bottom-0 left-0", br: "bottom-0 right-0" };
+
+  const dragStateRef = useRef<{ corner: "tl"|"tr"|"bl"|"br"; startX: number; startY: number; startW: number; startH: number | null; currentW: number; currentH: number | null } | null>(null);
+
   function handleCornerMouseDown(e: React.MouseEvent, corner: "tl" | "tr" | "bl" | "br") {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const containerEl = thumbnailRef.current;
-    if (!containerEl) return;
-    const rect = containerEl.getBoundingClientRect();
-
-    dragStateRef.current = {
-      dragging: true,
-      corner,
-      startX: e.clientX,
-      startY: e.clientY,
-      startW: localWidth ?? 100,
-      startH: localHeight,
-      currentW: localWidth ?? 100,
-      currentH: localHeight,
-    };
+    e.preventDefault(); e.stopPropagation();
+    const rect = thumbnailRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    dragStateRef.current = { corner, startX: e.clientX, startY: e.clientY, startW: localWidth ?? 100, startH: localHeight, currentW: localWidth ?? 100, currentH: localHeight };
 
     function onMouseMove(me: MouseEvent) {
-      const ds = dragStateRef.current;
-      if (!ds) return;
-
-      const containerRect = thumbnailRef.current?.getBoundingClientRect() ?? rect;
-      const containerWidth = containerRect.width || 1;
-      const containerHeight = containerRect.height || 1;
-
-      const dx = me.clientX - ds.startX;
-      const dy = me.clientY - ds.startY;
-
-      // Width: left corners invert direction
-      const widthSign = (corner === "tl" || corner === "bl") ? -1 : 1;
-      const rawW = ds.startW + (dx * widthSign / containerWidth) * 100;
-      const newW = Math.round(Math.min(100, Math.max(10, rawW)));
-
-      // Height: top corners invert direction
-      const heightSign = (corner === "tl" || corner === "tr") ? -1 : 1;
-      const startH = ds.startH ?? 0;
-      const rawH = startH + (dy * heightSign / containerHeight) * 100;
-      // If dragged very close to 0, treat as "auto"
-      let newH: number | null;
-      if (rawH < 5) {
-        newH = null;
-      } else {
-        newH = Math.round(Math.min(100, Math.max(10, rawH)));
-      }
-
-      if (dragStateRef.current) {
-        dragStateRef.current.currentW = newW;
-        dragStateRef.current.currentH = newH;
-      }
-      setLocalWidth(newW);
-      setWidthInput(String(newW));
-      setLocalHeight(newH);
-      setHeightInput(newH != null ? String(newH) : "");
+      const ds = dragStateRef.current; if (!ds) return;
+      const r = thumbnailRef.current?.getBoundingClientRect() ?? rect;
+      const dx = me.clientX - ds.startX, dy = me.clientY - ds.startY;
+      const wSign = (corner === "tl" || corner === "bl") ? -1 : 1;
+      const newW = Math.round(Math.min(100, Math.max(10, ds.startW + (dx * wSign / (r?.width || 1)) * 100)));
+      const hSign = (corner === "tl" || corner === "tr") ? -1 : 1;
+      const rawH = (ds.startH ?? 0) + (dy * hSign / (r?.height || 1)) * 100;
+      const newH = rawH < 5 ? null : Math.round(Math.min(100, Math.max(10, rawH)));
+      dragStateRef.current = { ...ds, currentW: newW, currentH: newH };
+      setLocalWidth(newW); setWidthInput(String(newW));
+      setLocalHeight(newH); setHeightInput(newH != null ? String(newH) : "");
     }
-
     function onMouseUp() {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
-      const ds = dragStateRef.current;
-      if (!ds) return;
-      savePanel(ds.currentW, ds.currentH);
+      const ds = dragStateRef.current; if (!ds) return;
+      saveAll({ width: ds.currentW, height: ds.currentH });
       dragStateRef.current = null;
     }
-
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
   }
 
-  function handleWidthBlur() {
-    const val = parseInt(widthInput, 10);
-    const clamped = isNaN(val) ? null : Math.min(100, Math.max(10, val));
-    setLocalWidth(clamped);
-    savePanel(clamped, localHeight);
-  }
-
-  function handleHeightBlur() {
-    const trimmed = heightInput.trim().toLowerCase();
-    if (!trimmed || trimmed === "auto") {
-      setLocalHeight(null);
-      setHeightInput("");
-      savePanel(localWidth, null);
-    } else {
-      const val = parseInt(trimmed, 10);
-      const clamped = isNaN(val) ? null : Math.min(100, Math.max(10, val));
-      setLocalHeight(clamped);
-      setHeightInput(clamped != null ? String(clamped) : "");
-      savePanel(localWidth, clamped);
-    }
-  }
-
-  const cornerCursors = {
-    tl: "cursor-nw-resize",
-    tr: "cursor-ne-resize",
-    bl: "cursor-sw-resize",
-    br: "cursor-se-resize",
-  };
-  const cornerPositions = {
-    tl: "top-0 left-0",
-    tr: "top-0 right-0",
-    bl: "bottom-0 left-0",
-    br: "bottom-0 right-0",
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`relative group rounded-lg overflow-hidden border-2 ${
-        isCover ? "border-gray-900" : "border-gray-100"
-      } bg-gray-50`}
-    >
-      {/* Drag handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute top-2 left-2 z-10 w-6 h-6 flex items-center justify-center rounded bg-white/80 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700 transition-colors opacity-0 group-hover:opacity-100"
-        aria-label="Drag to reorder"
-      >
-        ⠿
-      </div>
-
-      {/* Cover badge */}
-      {isCover && (
-        <div className="absolute top-2 right-2 z-10 px-1.5 py-0.5 bg-gray-900 text-white text-[10px] rounded font-medium">
-          Cover
-        </div>
-      )}
-
-      <div className="aspect-[4/3] relative" ref={thumbnailRef}>
-        {panel.image_url ? (
-          <Image
-            src={panel.image_url}
-            alt={`Panel ${panel.display_order + 1}`}
-            fill
-            className="object-cover"
-            sizes="(max-width: 640px) 50vw, 33vw"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-            <span className="text-3xl text-gray-300 select-none">T</span>
-          </div>
-        )}
-        {/* Corner resize handles */}
-        {(["tl", "tr", "bl", "br"] as const).map((corner) => (
-          <div
-            key={corner}
-            onMouseDown={(e) => handleCornerMouseDown(e, corner)}
-            className={`absolute z-20 w-2 h-2 bg-gray-400 opacity-0 group-hover:opacity-100 transition-opacity ${cornerCursors[corner]} ${cornerPositions[corner]}`}
-            style={{ touchAction: "none" }}
-          />
-        ))}
-      </div>
-
-      <div className="px-2 py-1.5 bg-white space-y-1">
+  const modal = settingsOpen && typeof document !== "undefined" ? createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setSettingsOpen(false)}>
+      <div className="bg-white rounded-xl shadow-xl w-80 max-h-[90vh] overflow-y-auto p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-400">#{panel.display_order + 1}</span>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {!isCover && (
-              <button
-                onClick={() => onSetCover(panel.id)}
-                title="Set as cover"
-                className="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
-              >
-                Cover
-              </button>
-            )}
-            <button
-              onClick={() => onDelete(panel.id)}
-              disabled={deleting}
-              title="Delete panel"
-              className="text-xs px-2 py-0.5 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors disabled:opacity-50"
-            >
-              Del
-            </button>
-          </div>
+          <h3 className="text-sm font-medium text-gray-900">Panel #{panel.display_order + 1} settings</h3>
+          <button onClick={() => setSettingsOpen(false)} className="text-gray-400 hover:text-gray-700 text-lg leading-none">×</button>
         </div>
-        {/* Size inputs */}
-        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <label className="text-[10px] text-gray-400">W:</label>
-          <input
-            type="number"
-            min={10}
-            max={100}
-            value={widthInput}
-            onChange={(e) => setWidthInput(e.target.value)}
-            onBlur={handleWidthBlur}
-            placeholder="100"
-            className="w-12 px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
-          />
-          <span className="text-[10px] text-gray-400">%</span>
-          <label className="text-[10px] text-gray-400 ml-1">H:</label>
-          <input
-            type="text"
-            value={heightInput}
-            onChange={(e) => setHeightInput(e.target.value)}
-            onBlur={handleHeightBlur}
-            placeholder="auto"
-            className="w-12 px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
-          />
-          {heightInput && <span className="text-[10px] text-gray-400">%</span>}
+
+        {/* Size */}
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-gray-500">Size</p>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-400 w-6">W</label>
+            <input type="number" min={10} max={100} value={widthInput} onChange={(e) => setWidthInput(e.target.value)}
+              onBlur={() => { const v = parseInt(widthInput,10); const c = isNaN(v)?null:Math.min(100,Math.max(10,v)); setLocalWidth(c); saveAll({width:c}); }}
+              placeholder="100" className="w-16 px-2 py-1 border border-gray-200 rounded text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400" />
+            <span className="text-xs text-gray-400">%</span>
+            <label className="text-xs text-gray-400 w-6 ml-2">H</label>
+            <input type="text" value={heightInput} onChange={(e) => setHeightInput(e.target.value)}
+              onBlur={() => { const t=heightInput.trim().toLowerCase(); if(!t||t==="auto"){setLocalHeight(null);setHeightInput("");saveAll({height:null});}else{const v=parseInt(t,10);const c=isNaN(v)?null:Math.min(100,Math.max(10,v));setLocalHeight(c);setHeightInput(c!=null?String(c):"");saveAll({height:c});} }}
+              placeholder="auto" className="w-16 px-2 py-1 border border-gray-200 rounded text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400" />
+            {heightInput && <span className="text-xs text-gray-400">%</span>}
+          </div>
         </div>
 
         {/* Caption */}
-        <div className={`${panel.image_url ? "opacity-0 group-hover:opacity-100 transition-opacity" : ""} space-y-1`}>
-          <textarea
-            value={captionInput}
-            onChange={(e) => setCaptionInput(e.target.value)}
-            onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize, captionFontFamily, captionColor, panelFadeDuration)}
-            placeholder="Caption (optional)"
-            rows={2}
-            className="w-full px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 resize-none"
-          />
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-gray-500">Caption</p>
+          <textarea value={captionInput} onChange={(e) => setCaptionInput(e.target.value)}
+            onBlur={() => saveAll()} placeholder="Caption text (optional)" rows={3}
+            className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 resize-none" />
           {captionInput && (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1.5">
-                <select
-                  value={captionPosition}
-                  onChange={(e) => { setCaptionPosition(e.target.value); saveCaption(captionInput, e.target.value, captionFontSize, captionFontFamily, captionColor, panelFadeDuration); }}
-                  className="px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                >
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-400 shrink-0">Position</label>
+                <select value={captionPosition} onChange={(e) => { setCaptionPosition(e.target.value); saveAll({position:e.target.value}); }}
+                  className="flex-1 px-2 py-1 border border-gray-200 rounded text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
                   <option value="bottom">Bottom</option>
                   <option value="top">Top</option>
                   <option value="left">Left</option>
                   <option value="right">Right</option>
                 </select>
-                <label className="text-[10px] text-gray-400">px:</label>
-                <input
-                  type="number"
-                  min={8}
-                  max={72}
-                  value={captionFontSize}
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-400 shrink-0">Font size</label>
+                <input type="number" min={8} max={72} value={captionFontSize}
                   onChange={(e) => setCaptionFontSize(Number(e.target.value))}
-                  onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize, captionFontFamily, captionColor, panelFadeDuration)}
-                  className="w-10 px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                />
+                  onBlur={() => saveAll()}
+                  className="w-16 px-2 py-1 border border-gray-200 rounded text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400" />
+                <span className="text-xs text-gray-400">px</span>
               </div>
-              <FontPicker
-                value={captionFontFamily}
-                onChange={(val) => { setCaptionFontFamily(val); saveCaption(captionInput, captionPosition, captionFontSize, val, captionColor, panelFadeDuration); }}
-              />
-              <div className="flex items-center gap-1.5">
-                <label className="text-[10px] text-gray-400">Color:</label>
-                <input
-                  type="color"
-                  value={captionColor}
-                  onChange={(e) => setCaptionColor(e.target.value)}
-                  onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize, captionFontFamily, captionColor, panelFadeDuration)}
-                  className="w-6 h-6 rounded cursor-pointer border border-gray-200 p-0.5"
-                />
-                <input
-                  type="text"
-                  value={captionColor}
-                  onChange={(e) => setCaptionColor(e.target.value)}
-                  onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize, captionFontFamily, captionColor, panelFadeDuration)}
-                  className="w-16 px-1 py-0.5 border border-gray-200 rounded text-[10px] font-mono text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                />
+              <div className="space-y-1">
+                <label className="text-xs text-gray-400">Font</label>
+                <FontPicker value={captionFontFamily} onChange={(val) => { setCaptionFontFamily(val); saveAll({fontFamily:val}); }} />
               </div>
-              <div className="flex items-center gap-1.5">
-                <label className="text-[10px] text-gray-400">Fade:</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={3000}
-                  step={50}
-                  value={panelFadeDuration ?? ""}
-                  onChange={(e) => setPanelFadeDuration(e.target.value === "" ? null : Number(e.target.value))}
-                  onBlur={() => saveCaption(captionInput, captionPosition, captionFontSize, captionFontFamily, captionColor, panelFadeDuration)}
-                  placeholder="default"
-                  className="w-16 px-1 py-0.5 border border-gray-200 rounded text-[10px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                />
-                <span className="text-[10px] text-gray-400">ms</span>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-400 shrink-0">Color</label>
+                <input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} onBlur={() => saveAll()}
+                  className="w-7 h-7 rounded cursor-pointer border border-gray-200 p-0.5" />
+                <input type="text" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} onBlur={() => saveAll()}
+                  className="flex-1 px-2 py-1 border border-gray-200 rounded text-xs font-mono text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400" />
               </div>
             </div>
           )}
         </div>
+
+        {/* Transition */}
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-gray-500">Transition (overrides series default)</p>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-400 w-16 shrink-0">Fade in</label>
+            <input type="number" min={0} max={3000} step={50} value={fadeIn ?? ""}
+              onChange={(e) => setFadeIn(e.target.value===""?null:Number(e.target.value))}
+              onBlur={() => saveAll()} placeholder="default"
+              className="flex-1 px-2 py-1 border border-gray-200 rounded text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400" />
+            <span className="text-xs text-gray-400">ms</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-400 w-16 shrink-0">Fade out</label>
+            <input type="number" min={0} max={3000} step={50} value={fadeOut ?? ""}
+              onChange={(e) => setFadeOut(e.target.value===""?null:Number(e.target.value))}
+              onBlur={() => saveAll()} placeholder="default"
+              className="flex-1 px-2 py-1 border border-gray-200 rounded text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400" />
+            <span className="text-xs text-gray-400">ms</span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-1 border-t border-gray-100">
+          {!isCover && (
+            <button onClick={() => { onSetCover(panel.id); setSettingsOpen(false); }}
+              className="flex-1 text-xs px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors">
+              Set as cover
+            </button>
+          )}
+          <button onClick={() => { setSettingsOpen(false); onDelete(panel.id); }} disabled={deleting}
+            className="flex-1 text-xs px-3 py-1.5 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors disabled:opacity-50">
+            Delete panel
+          </button>
+        </div>
       </div>
+    </div>,
+    document.body
+  ) : null;
+
+  return (
+    <div ref={setNodeRef} style={cardStyle}
+      className={`relative group rounded-lg overflow-hidden border-2 ${isCover ? "border-gray-900" : "border-gray-100"} bg-gray-50`}
+    >
+      {/* Drag handle */}
+      <div {...attributes} {...listeners}
+        className="absolute top-2 left-2 z-10 w-6 h-6 flex items-center justify-center rounded bg-white/80 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700 transition-colors opacity-0 group-hover:opacity-100"
+        aria-label="Drag to reorder">⠿</div>
+
+      {/* Cover badge */}
+      {isCover && (
+        <div className="absolute top-2 right-2 z-10 px-1.5 py-0.5 bg-gray-900 text-white text-[10px] rounded font-medium">Cover</div>
+      )}
+
+      <div className="aspect-[4/3] relative" ref={thumbnailRef}>
+        {panel.image_url ? (
+          <Image src={panel.image_url} alt={`Panel ${panel.display_order + 1}`} fill className="object-cover" sizes="(max-width: 640px) 50vw, 33vw" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+            <span className="text-3xl text-gray-300 select-none">T</span>
+          </div>
+        )}
+        {(["tl", "tr", "bl", "br"] as const).map((corner) => (
+          <div key={corner} onMouseDown={(e) => handleCornerMouseDown(e, corner)}
+            className={`absolute z-20 w-2 h-2 bg-gray-400 opacity-0 group-hover:opacity-100 transition-opacity ${cornerCursors[corner]} ${cornerPositions[corner]}`}
+            style={{ touchAction: "none" }} />
+        ))}
+      </div>
+
+      <div className="px-2 py-1.5 bg-white flex items-center justify-between">
+        <span className="text-xs text-gray-400">#{panel.display_order + 1}</span>
+        <button onClick={() => setSettingsOpen(true)}
+          className="opacity-0 group-hover:opacity-100 transition-opacity text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors">
+          ⚙ Settings
+        </button>
+      </div>
+
+      {modal}
     </div>
   );
 }
@@ -615,7 +510,7 @@ export default function SeriesEditor({ series }: Props) {
     }
   }
 
-  function handlePanelUpdate(panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number, captionFontFamily?: string, captionColor?: string | null, fadeDuration?: number | null) {
+  function handlePanelUpdate(panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number, captionFontFamily?: string, captionColor?: string | null, fadeIn?: number | null, fadeOut?: number | null) {
     setPanels((prev) =>
       prev.map((p) =>
         p.id === panelId ? {
@@ -627,7 +522,8 @@ export default function SeriesEditor({ series }: Props) {
           ...(captionFontSize !== undefined ? { caption_font_size: captionFontSize } : {}),
           ...(captionFontFamily !== undefined ? { caption_font_family: captionFontFamily } : {}),
           ...(captionColor !== undefined ? { caption_color: captionColor } : {}),
-          ...(fadeDuration !== undefined ? { fade_duration: fadeDuration } : {}),
+          ...(fadeIn !== undefined ? { fade_in_duration: fadeIn } : {}),
+          ...(fadeOut !== undefined ? { fade_out_duration: fadeOut } : {}),
         } : p
       )
     );

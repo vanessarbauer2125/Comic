@@ -29,7 +29,8 @@ export async function PUT(
   if (body.caption_font_size !== undefined) updates.caption_font_size = body.caption_font_size;
   if (body.caption_font_family !== undefined) updates.caption_font_family = body.caption_font_family;
   if (body.caption_color !== undefined) updates.caption_color = body.caption_color;
-  if (body.fade_duration !== undefined) updates.fade_duration = body.fade_duration;
+  if (body.fade_in_duration !== undefined) updates.fade_in_duration = body.fade_in_duration;
+  if (body.fade_out_duration !== undefined) updates.fade_out_duration = body.fade_out_duration;
 
   const { data, error } = await supabase
     .from("panels")
