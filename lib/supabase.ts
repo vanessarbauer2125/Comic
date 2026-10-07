@@ -29,6 +29,14 @@ export interface Series {
   panels?: Panel[];
 }
 
+export interface GalleryImage {
+  id: string;
+  image_url: string;
+  title: string | null;
+  display_order: number;
+  created_at: string;
+}
+
 export interface Panel {
   id: string;
   series_id: string;

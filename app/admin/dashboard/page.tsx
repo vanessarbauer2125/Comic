@@ -108,7 +108,14 @@ export default function DashboardPage() {
       </header>
 
       <div className="max-w-4xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-4 border-b border-gray-100 w-full pb-4">
+            <span className="text-sm font-medium text-gray-900">Comics</span>
+            <Link href="/admin/gallery" className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Gallery</Link>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mb-6 mt-6">
           <h2 className="text-base font-medium text-gray-900">All Series</h2>
           <button
             onClick={() => setShowForm((v) => !v)}
