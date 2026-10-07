@@ -43,6 +43,8 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
     if (transitioningRef.current || nextIndex === current) return;
     transitioningRef.current = true;
 
+    const effectiveFade = panels[current].fade_duration ?? fadeDuration;
+
     if (transitionType === "instant") {
       originRef.current = pickOrigin(zoomOrigin);
       setCurrent(nextIndex);
@@ -55,14 +57,13 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
       originRef.current = pickOrigin(zoomOrigin);
       setCurrent(nextIndex);
       setCrossfadeIn(false);
-      // tiny delay to let prev render, then fade in new panel
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           setCrossfadeIn(true);
           setTimeout(() => {
             setPrev(null);
             transitioningRef.current = false;
-          }, fadeDuration);
+          }, effectiveFade);
         });
       });
       return;
@@ -76,9 +77,9 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
       setTimeout(() => {
         setOverlayOpacity(0);
         transitioningRef.current = false;
-      }, fadeDuration);
-    }, fadeDuration);
-  }, [current, fadeDuration, transitionType, zoomOrigin]);
+      }, effectiveFade);
+    }, effectiveFade);
+  }, [current, fadeDuration, panels, transitionType, zoomOrigin]);
 
   const goNext = useCallback(() => {
     doTransition((current + 1) % total);
@@ -103,6 +104,8 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
           if (!transitioningRef.current) {
             transitioningRef.current = true;
 
+            const effectiveFade = panels[c].fade_duration ?? fadeDuration;
+
             if (transitionType === "instant") {
               originRef.current = pickOrigin(zoomOrigin);
               setCurrent(next);
@@ -118,7 +121,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
                   setTimeout(() => {
                     setPrev(null);
                     transitioningRef.current = false;
-                  }, fadeDuration);
+                  }, effectiveFade);
                 });
               });
             } else {
@@ -129,8 +132,8 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
                 setTimeout(() => {
                   setOverlayOpacity(0);
                   transitioningRef.current = false;
-                }, fadeDuration);
-              }, fadeDuration);
+                }, effectiveFade);
+              }, effectiveFade);
             }
           }
           return c;
@@ -140,7 +143,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
       clearTimer();
     }
     return clearTimer;
-  }, [playing, autospeed, total, clearTimer, fadeDuration, transitionType, zoomOrigin]);
+  }, [playing, autospeed, total, clearTimer, fadeDuration, panels, transitionType, zoomOrigin]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -187,7 +190,8 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
         {transitionType === "crossfade" && prev !== null && (() => {
           const prevPanel = panels[prev];
           const prevWidth = prevPanel.custom_width ?? defaultPanelWidth;
-          const fadeStyle = { opacity: crossfadeIn ? 0 : 1, transition: `opacity ${fadeDuration}ms ease-in-out` };
+          const prevFade = prevPanel.fade_duration ?? fadeDuration;
+          const fadeStyle = { opacity: crossfadeIn ? 0 : 1, transition: `opacity ${prevFade}ms ease-in-out` };
           if (!prevPanel.image_url) {
             return (
               <div className="absolute inset-0 flex items-center justify-center px-8" style={fadeStyle}>

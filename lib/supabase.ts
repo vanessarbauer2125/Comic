@@ -41,5 +41,6 @@ export interface Panel {
   caption_font_size: number;
   caption_font_family: string;
   caption_color: string | null;
+  fade_duration: number | null;
   created_at: string;
 }
