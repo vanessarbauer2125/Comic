@@ -45,7 +45,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
     if (!url) return Promise.resolve();
     const img = new window.Image();
     img.src = url;
-    return img.decode ? img.decode().catch(() => {}) : new Promise((r) => { img.onload = r; img.onerror = r; });
+    return img.decode ? img.decode().catch(() => {}) : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); });
   }
 
   // Proactively preload the next panel so decode is fast by the time we need it
