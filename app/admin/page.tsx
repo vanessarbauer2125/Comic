@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function AdminLoginPage() {
@@ -75,11 +74,6 @@ export default function AdminLoginPage() {
             {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
-        <p className="mt-6 text-center">
-          <Link href="/admin/docs" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
-            View documentation
-          </Link>
-        </p>
       </div>
     </div>
   );
