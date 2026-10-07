@@ -40,6 +40,23 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
   const originRef = useRef(pickOrigin(zoomOrigin));
   const total = panels.length;
 
+  // Decode image so it's pixel-ready before we reveal it
+  function decodeImage(url: string | null): Promise<void> {
+    if (!url) return Promise.resolve();
+    const img = new window.Image();
+    img.src = url;
+    return img.decode ? img.decode().catch(() => {}) : new Promise((r) => { img.onload = r; img.onerror = r; });
+  }
+
+  // Proactively preload the next panel so decode is fast by the time we need it
+  useEffect(() => {
+    const nextUrl = panels[(current + 1) % total]?.image_url;
+    if (nextUrl) {
+      const img = new window.Image();
+      img.src = nextUrl;
+    }
+  }, [current, panels, total]);
+
   const doTransition = useCallback((nextIndex: number) => {
     if (transitioningRef.current || nextIndex === current) return;
     transitioningRef.current = true;
@@ -47,6 +64,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
     const curPanel = panels[current];
     const effectiveFadeOut = curPanel.fade_out_duration ?? fadeDuration;
     const effectiveFadeIn = curPanel.fade_in_duration ?? fadeDuration;
+    const nextUrl = panels[nextIndex]?.image_url ?? null;
 
     if (transitionType === "instant") {
       originRef.current = pickOrigin(zoomOrigin);
@@ -60,31 +78,32 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
       originRef.current = pickOrigin(zoomOrigin);
       setCurrent(nextIndex);
       setCrossfadeIn(false);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setCrossfadeIn(true);
-          setTimeout(() => {
-            setPrev(null);
-            transitioningRef.current = false;
-          }, Math.max(effectiveFadeIn, effectiveFadeOut));
-        });
+      // Wait for the incoming image to be fully decoded before fading it in
+      decodeImage(nextUrl).then(() => {
+        setCrossfadeIn(true);
+        setTimeout(() => {
+          setPrev(null);
+          transitioningRef.current = false;
+        }, Math.max(effectiveFadeIn, effectiveFadeOut));
       });
       return;
     }
 
-    // fade-black: fade out then fade in
+    // fade-black: fade out, then wait for decode, then fade in
     setOverlayTransition(effectiveFadeOut);
     setOverlayOpacity(1);
     setTimeout(() => {
       originRef.current = pickOrigin(zoomOrigin);
       setCurrent(nextIndex);
-      setOverlayTransition(effectiveFadeIn);
-      setTimeout(() => {
-        setOverlayOpacity(0);
-        transitioningRef.current = false;
-      }, effectiveFadeIn);
+      decodeImage(nextUrl).then(() => {
+        setOverlayTransition(effectiveFadeIn);
+        setTimeout(() => {
+          setOverlayOpacity(0);
+          transitioningRef.current = false;
+        }, effectiveFadeIn);
+      });
     }, effectiveFadeOut);
-  }, [current, fadeDuration, panels, transitionType, zoomOrigin]);
+  }, [current, fadeDuration, panels, transitionType, zoomOrigin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const goNext = useCallback(() => {
     doTransition((current + 1) % total);
@@ -101,48 +120,16 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
     }
   }, []);
 
+  // Keep a ref to doTransition so the interval can always call the latest version
+  const doTransitionRef = useRef(doTransition);
+  useEffect(() => { doTransitionRef.current = doTransition; }, [doTransition]);
+
   useEffect(() => {
     if (playing && total > 1) {
       intervalRef.current = setInterval(() => {
         setCurrent((c) => {
-          const next = (c + 1) % total;
           if (!transitioningRef.current) {
-            transitioningRef.current = true;
-
-            const efo = panels[c].fade_out_duration ?? fadeDuration;
-            const efi = panels[c].fade_in_duration ?? fadeDuration;
-
-            if (transitionType === "instant") {
-              originRef.current = pickOrigin(zoomOrigin);
-              setCurrent(next);
-              transitioningRef.current = false;
-            } else if (transitionType === "crossfade") {
-              setPrev(c);
-              originRef.current = pickOrigin(zoomOrigin);
-              setCurrent(next);
-              setCrossfadeIn(false);
-              requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                  setCrossfadeIn(true);
-                  setTimeout(() => {
-                    setPrev(null);
-                    transitioningRef.current = false;
-                  }, Math.max(efi, efo));
-                });
-              });
-            } else {
-              setOverlayTransition(efo);
-              setOverlayOpacity(1);
-              setTimeout(() => {
-                originRef.current = pickOrigin(zoomOrigin);
-                setCurrent(next);
-                setOverlayTransition(efi);
-                setTimeout(() => {
-                  setOverlayOpacity(0);
-                  transitioningRef.current = false;
-                }, efi);
-              }, efo);
-            }
+            doTransitionRef.current((c + 1) % total);
           }
           return c;
         });
@@ -151,7 +138,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
       clearTimer();
     }
     return clearTimer;
-  }, [playing, autospeed, total, clearTimer, fadeDuration, panels, transitionType, zoomOrigin]);
+  }, [playing, autospeed, total, clearTimer]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
