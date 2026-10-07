@@ -1,57 +1,66 @@
-import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import type { GalleryImage } from "@/lib/supabase";
+import HomeFeed from "./HomeFeed";
 
 export const revalidate = 60;
 
-async function getGalleryImages(): Promise<GalleryImage[]> {
-  const { data, error } = await supabase
-    .from("gallery_images")
-    .select("*")
-    .order("display_order", { ascending: true });
-
-  if (error) return [];
-  return data ?? [];
-}
-
 export default async function HomePage() {
-  const images = await getGalleryImages();
+  // Fetch gallery images and series in parallel
+  const [{ data: galleryData }, { data: seriesData }] = await Promise.all([
+    supabase.from("gallery_images").select("*").order("created_at", { ascending: false }),
+    supabase.from("series").select("id, title, slug, cover_panel_id, created_at").order("created_at", { ascending: false }),
+  ]);
+
+  const images = (galleryData ?? []).map((img) => ({
+    type: "image" as const,
+    id: img.id,
+    image_url: img.image_url,
+    title: img.title,
+    created_at: img.created_at,
+  }));
+
+  const seriesWithCovers = await Promise.all(
+    (seriesData ?? []).map(async (s) => {
+      const { count } = await supabase
+        .from("panels")
+        .select("id", { count: "exact", head: true })
+        .eq("series_id", s.id);
+
+      let coverUrl: string | null = null;
+      if (s.cover_panel_id) {
+        const { data: panel } = await supabase.from("panels").select("image_url").eq("id", s.cover_panel_id).single();
+        coverUrl = panel?.image_url ?? null;
+      } else {
+        const { data: first } = await supabase.from("panels").select("image_url").eq("series_id", s.id).order("display_order", { ascending: true }).limit(1).single();
+        coverUrl = first?.image_url ?? null;
+      }
+
+      return {
+        type: "comic" as const,
+        id: s.id,
+        slug: s.slug,
+        title: s.title,
+        coverUrl,
+        panel_count: count ?? 0,
+        created_at: s.created_at,
+      };
+    })
+  );
+
+  // Merge and sort by newest first
+  const items = [...images, ...seriesWithCovers].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   return (
     <main className="min-h-screen bg-white">
       <header className="border-b border-gray-100 px-6 py-5 flex items-center justify-between">
-        <h1 className="text-xl font-semibold tracking-tight text-gray-900">Gallery</h1>
-        <nav className="flex items-center gap-4">
-          <span className="text-sm font-medium text-gray-900">Gallery</span>
-          <Link href="/comics" className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Comics</Link>
-        </nav>
+        <h1 className="text-xl font-semibold tracking-tight text-gray-900">Portfolio</h1>
+        <Link href="/admin" className="text-xs text-gray-300 hover:text-gray-500 transition-colors">Admin</Link>
       </header>
 
       <div className="px-6 py-8">
-        {images.length === 0 ? (
-          <p className="text-gray-400 text-sm">No images published yet.</p>
-        ) : (
-          <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
-            {images.map((img) => (
-              <div key={img.id} className="break-inside-avoid">
-                <div className="relative overflow-hidden rounded-lg bg-gray-50">
-                  <Image
-                    src={img.image_url}
-                    alt={img.title ?? "Gallery image"}
-                    width={800}
-                    height={600}
-                    className="w-full h-auto object-cover"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                  />
-                </div>
-                {img.title && (
-                  <p className="mt-1.5 text-xs text-gray-500 px-0.5">{img.title}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        <HomeFeed items={items} />
       </div>
     </main>
   );
