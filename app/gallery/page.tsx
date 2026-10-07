@@ -23,8 +23,8 @@ export default async function GalleryPage() {
       <header className="border-b border-gray-100 px-6 py-5 flex items-center justify-between">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900">Gallery</h1>
         <nav className="flex items-center gap-4">
-          <Link href="/" className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Comics</Link>
           <span className="text-sm font-medium text-gray-900">Gallery</span>
+          <Link href="/comics" className="text-sm text-gray-400 hover:text-gray-900 transition-colors">Comics</Link>
         </nav>
       </header>
 

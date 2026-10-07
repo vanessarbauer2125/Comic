@@ -170,7 +170,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
     <div className="h-screen overflow-hidden flex flex-col select-none" style={{ backgroundColor: bgColor }}>
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
-        <Link href="/" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">← All Comics</Link>
+        <Link href="/comics" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">← All Comics</Link>
         <span className="text-xs text-gray-500 font-medium tracking-wide">{title}</span>
         <span className="text-xs text-gray-600 tabular-nums">{current + 1} / {total}</span>
       </div>
