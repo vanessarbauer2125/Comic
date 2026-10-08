@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import HomeFeed from "./HomeFeed";
 
@@ -54,9 +53,8 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-white">
-      <header className="border-b border-gray-100 px-6 py-5 flex items-center justify-between">
+      <header className="border-b border-gray-100 px-6 py-5 flex items-center justify-center">
         <h1 className="text-2xl text-gray-900" style={{ fontFamily: "Chalkduster, fantasy" }}>nessydoodle</h1>
-        <Link href="/admin" className="text-xs text-gray-300 hover:text-gray-500 transition-colors">Admin</Link>
       </header>
 
       <div className="px-6 py-8">
