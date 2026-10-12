@@ -281,9 +281,9 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
           const isHorizontal = captionPos === "left" || captionPos === "right";
           const captionEl = (
             <p
-              style={{ fontSize: captionSize, fontFamily: captionFont, color: captionColor }}
-              className={`leading-snug whitespace-pre-wrap px-2 py-1 shrink-0 ${
-                isHorizontal ? "max-w-[20%] self-center" : "text-center w-full"
+              style={{ fontSize: captionSize, fontFamily: captionFont, color: captionColor, overflowWrap: "break-word", wordBreak: "break-word" }}
+              className={`leading-snug whitespace-pre-wrap px-2 py-1 shrink-0 text-center ${
+                isHorizontal ? "w-full sm:max-w-[20%] sm:self-center" : "w-full"
               }`}
             >
               {caption}
@@ -292,7 +292,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
 
           return (
             <div
-              className={`flex ${isHorizontal ? "flex-row w-full justify-center" : "flex-col"} items-center gap-8`}
+              className={`flex ${isHorizontal ? "flex-col sm:flex-row w-full justify-center" : "flex-col"} items-center gap-3 sm:gap-8`}
               style={isHorizontal ? undefined : { maxWidth: `${curWidth}%` }}
             >
               {(captionPos === "top" || captionPos === "left") && captionEl}
