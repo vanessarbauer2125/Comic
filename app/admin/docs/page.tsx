@@ -58,6 +58,27 @@ export default function DocsPage() {
           <p className="text-sm text-gray-400 mt-1">All pages, routes, and features for your comic hosting site.</p>
         </div>
 
+        {/* Tech stack */}
+        <Section title="Tech stack & deployment">
+          <div className="space-y-2.5">
+            <Feature label="Framework">Next.js App Router (TypeScript, Tailwind CSS)</Feature>
+            <Feature label="Database">Supabase — Postgres for data, Storage bucket <code className="bg-gray-100 px-1 rounded text-xs">panels</code> for all images</Feature>
+            <Feature label="Hosting">Vercel — live at <code className="bg-gray-100 px-1 rounded text-xs">nessydoodle.com</code></Feature>
+            <Feature label="Deploy workflow">Push to <code className="bg-gray-100 px-1 rounded text-xs">main</code> on GitHub → Vercel auto-deploys (usually ~20s)</Feature>
+            <Feature label="Repo">github.com/vanessarbauer2125/Comic (main branch)</Feature>
+            <Feature label="Local dev"><code className="bg-gray-100 px-1 rounded text-xs">npm run dev</code> → localhost:3000. Needs <code className="bg-gray-100 px-1 rounded text-xs">.env.local</code> with Supabase keys and admin password.</Feature>
+            <Feature label="DB changes">Run SQL directly in the Supabase dashboard. Schema reference in <code className="bg-gray-100 px-1 rounded text-xs">supabase-schema.sql</code>.</Feature>
+            <Feature label="Key files">
+              <span className="space-y-1 block">
+                <span className="block"><code className="bg-gray-100 px-1 rounded text-xs">lib/supabase.ts</code> — Supabase client + TypeScript types</span>
+                <span className="block"><code className="bg-gray-100 px-1 rounded text-xs">lib/fonts.ts</code> — caption font list</span>
+                <span className="block"><code className="bg-gray-100 px-1 rounded text-xs">app/[slug]/ComicReader.tsx</code> — comic reader UI</span>
+                <span className="block"><code className="bg-gray-100 px-1 rounded text-xs">app/HomeFeed.tsx</code> — homepage feed (gallery + comics)</span>
+              </span>
+            </Feature>
+          </div>
+        </Section>
+
         {/* Public pages */}
         <Section title="Public pages">
           <div className="space-y-3">
