@@ -227,8 +227,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
           const captionSize = curPanel.caption_font_size ?? 16;
           const captionFont = curPanel.caption_font_family ?? "var(--font-geist-sans)";
           const captionColor = curPanel.caption_color ?? "#ffffff";
-          const isVerticalCaption = caption && (captionPos === "top" || captionPos === "bottom");
-          const imgMaxHeight = isVerticalCaption ? "calc(100vh - 240px)" : "calc(100vh - 160px)";
+          const imgMaxHeight = caption ? "calc(100vh - 240px)" : "calc(100vh - 160px)";
 
           // Caption-only panel (no image)
           if (!curPanel.image_url) {
