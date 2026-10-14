@@ -178,7 +178,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
       {/* Panel display */}
       <div
         className="flex-1 flex items-center justify-center px-4 py-4 cursor-pointer relative"
-        style={{ minHeight: 0 }}
+        style={{ minHeight: 0, contain: "layout style" }}
         onClick={goNext}
       >
         {/* Previous panel (crossfade only) */}
@@ -204,7 +204,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
                 alt={`Panel ${prev + 1}`}
                 width={1200}
                 height={900}
-                className="rounded-sm object-contain"
+                className="rounded-sm object-contain comic-panel-img"
                 style={{
                   width: "auto",
                   height: "auto",
@@ -253,12 +253,12 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
 
           const img = (
             <Image
-              key={`${curPanel.id}-${originRef.current}`}
+              key={curPanel.id}
               src={curPanel.image_url}
               alt={`Panel ${current + 1}`}
               width={1200}
               height={900}
-              className="rounded-sm object-contain"
+              className="rounded-sm object-contain comic-panel-img"
               style={{
                 width: "auto",
                 height: "auto",
@@ -304,7 +304,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
         {/* Fade-to-black overlay */}
         {transitionType === "fade-black" && (
           <div
-            className="absolute inset-0 pointer-events-none"
+            className="absolute inset-0 pointer-events-none comic-fade"
             style={{ backgroundColor: bgColor, opacity: overlayOpacity, transition: `opacity ${overlayTransition}ms ease-in-out` }}
           />
         )}
