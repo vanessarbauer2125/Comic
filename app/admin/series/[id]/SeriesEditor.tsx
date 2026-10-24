@@ -77,6 +77,7 @@ interface SortablePanelProps {
   onDelete: (id: string) => void;
   deleting: boolean;
   seriesId: string;
+  seriesSlug: string;
   onPanelUpdate: (panelId: string, width: number | null, height: number | null, caption?: string | null, captionPosition?: string, captionFontSize?: number, captionFontFamily?: string, captionColor?: string | null, fadeIn?: number | null, fadeOut?: number | null) => void;
 }
 
@@ -87,6 +88,7 @@ function SortablePanel({
   onDelete,
   deleting,
   seriesId,
+  seriesSlug,
   onPanelUpdate,
 }: SortablePanelProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -272,17 +274,27 @@ function SortablePanel({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 pt-1 border-t border-gray-100">
-          {!isCover && (
-            <button onClick={() => { onSetCover(panel.id); setSettingsOpen(false); }}
-              className="flex-1 text-xs px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors">
-              Set as cover
+        <div className="space-y-2 pt-1 border-t border-gray-100">
+          <a
+            href={`/${seriesSlug}?start=${panel.display_order}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full text-center text-xs px-3 py-1.5 rounded bg-gray-900 hover:bg-gray-700 text-white transition-colors"
+          >
+            Preview from here ↗
+          </a>
+          <div className="flex gap-2">
+            {!isCover && (
+              <button onClick={() => { onSetCover(panel.id); setSettingsOpen(false); }}
+                className="flex-1 text-xs px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors">
+                Set as cover
+              </button>
+            )}
+            <button onClick={() => { setSettingsOpen(false); onDelete(panel.id); }} disabled={deleting}
+              className="flex-1 text-xs px-3 py-1.5 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors disabled:opacity-50">
+              Delete panel
             </button>
-          )}
-          <button onClick={() => { setSettingsOpen(false); onDelete(panel.id); }} disabled={deleting}
-            className="flex-1 text-xs px-3 py-1.5 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors disabled:opacity-50">
-            Delete panel
-          </button>
+          </div>
         </div>
       </div>
     </div>,
@@ -847,6 +859,7 @@ export default function SeriesEditor({ series }: Props) {
                       onDelete={handleDelete}
                       deleting={deleting && deletingId === panel.id}
                       seriesId={series.id}
+                      seriesSlug={slug}
                       onPanelUpdate={handlePanelUpdate}
                     />
                   ))}

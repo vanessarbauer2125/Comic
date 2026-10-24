@@ -25,15 +25,21 @@ async function getSeriesBySlug(slug: string) {
 
 export default async function ComicPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ start?: string }>;
 }) {
-  const { slug } = await params;
+  const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const series = await getSeriesBySlug(slug);
 
   if (!series) notFound();
 
   const panels: Panel[] = series.panels ?? [];
+  const startIndex = Math.min(
+    Math.max(0, parseInt(sp.start ?? "0", 10) || 0),
+    Math.max(0, panels.length - 1)
+  );
 
   return (
     <ComicReader
@@ -46,6 +52,7 @@ export default async function ComicPage({
       zoomOrigin={series.zoom_origin ?? "random"}
       bgColor={series.background_color ?? "#000000"}
       defaultPanelWidth={series.default_panel_width ?? 100}
+      initialPanel={startIndex}
     />
   );
 }

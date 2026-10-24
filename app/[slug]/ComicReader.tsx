@@ -15,6 +15,7 @@ interface Props {
   zoomOrigin: string;
   bgColor: string;
   defaultPanelWidth: number;
+  initialPanel?: number;
 }
 
 const ORIGINS = [
@@ -28,8 +29,8 @@ function pickOrigin(zoomOrigin: string): string {
   return zoomOrigin;
 }
 
-export default function ComicReader({ title, panels, autospeed, fadeDuration, transitionType, zoomAmount, zoomOrigin, bgColor, defaultPanelWidth }: Props) {
-  const [current, setCurrent] = useState(0);
+export default function ComicReader({ title, panels, autospeed, fadeDuration, transitionType, zoomAmount, zoomOrigin, bgColor, defaultPanelWidth, initialPanel = 0 }: Props) {
+  const [current, setCurrent] = useState(initialPanel);
   const [prev, setPrev] = useState<number | null>(null);
   const [playing, setPlaying] = useState(true);
   const [overlayOpacity, setOverlayOpacity] = useState(0); // for fade-black
