@@ -114,6 +114,16 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
     doTransition((current - 1 + total) % total);
   }, [doTransition, current, total]);
 
+  // Force-jump: cuts through any in-progress transition immediately
+  const jumpTo = useCallback((index: number) => {
+    transitioningRef.current = false;
+    setOverlayOpacity(0);
+    setPrev(null);
+    setCrossfadeIn(false);
+    originRef.current = pickOrigin(zoomOrigin);
+    setCurrent(index);
+  }, [zoomOrigin]);
+
   const clearTimer = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -329,11 +339,23 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
 
       {/* Dot indicator */}
       {total <= 30 && (
-        <div className="flex items-center justify-center gap-1.5 pb-5">
+        <div className="flex items-center justify-center gap-1 pb-4">
           {panels.map((_, i) => (
-            <button key={i} onClick={() => doTransition(i)} aria-label={`Go to panel ${i + 1}`}
-              className={`rounded-full transition-all ${i === current ? "w-2 h-2 bg-white" : "w-1.5 h-1.5 bg-white/25 hover:bg-white/50"}`}
-            />
+            <button
+              key={i}
+              onClick={() => jumpTo(i)}
+              aria-label={`Go to panel ${i + 1}`}
+              title={`Panel ${i + 1}`}
+              className={`group relative rounded-full transition-all duration-150 flex items-center justify-center ${
+                i === current
+                  ? "w-6 h-6 bg-white"
+                  : "w-5 h-5 bg-white/20 hover:bg-white/60"
+              }`}
+            >
+              <span className={`text-[9px] font-medium tabular-nums select-none ${i === current ? "text-black" : "text-white/70 group-hover:text-white"}`}>
+                {i + 1}
+              </span>
+            </button>
           ))}
         </div>
       )}
