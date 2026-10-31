@@ -186,6 +186,31 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [current, autospeed, scaleFrom]);
 
+  const curPanel = panels[current];
+  const curWidth = curPanel.custom_width ?? defaultPanelWidth;
+  const caption = curPanel.caption;
+  const captionPos = curPanel.caption_position ?? "bottom";
+  const captionSize = curPanel.caption_font_size ?? 16;
+  const captionFont = curPanel.caption_font_family ?? "var(--font-geist-sans)";
+  const captionColor = curPanel.caption_color ?? "#ffffff";
+  const crossfadeStyle = transitionType === "crossfade" ? {
+    opacity: crossfadeIn ? 1 : (prev !== null ? 0 : 1),
+    transition: `opacity ${curPanel.fade_in_duration ?? fadeDuration}ms ease-in-out`,
+  } : {};
+
+  // Caption rendered as a sibling row (top/bottom positions) so it never overlaps the controls
+  const isHorizontalCaption = captionPos === "left" || captionPos === "right";
+  const captionBar = caption && !isHorizontalCaption && !!curPanel.image_url ? (
+    <div className="px-6 py-2 text-center" style={crossfadeStyle}>
+      <p
+        style={{ fontSize: `min(${captionSize}px, 4vw)`, fontFamily: captionFont, color: captionColor, overflowWrap: "break-word", wordBreak: "break-word" }}
+        className="leading-snug whitespace-pre-wrap max-w-4xl mx-auto"
+      >
+        {caption}
+      </p>
+    </div>
+  ) : null;
+
   return (
     <div className="h-screen overflow-hidden flex flex-col select-none" style={{ backgroundColor: bgColor }}>
       {/* Header */}
@@ -195,9 +220,12 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
         <span className="text-xs text-gray-600 tabular-nums">{current + 1} / {total}</span>
       </div>
 
+      {/* Top caption row */}
+      {captionPos === "top" && captionBar}
+
       {/* Panel display */}
       <div
-        className="flex-1 flex items-center justify-center px-4 py-4 cursor-pointer relative overflow-hidden"
+        className="flex-1 flex items-center justify-center px-4 py-2 cursor-pointer relative overflow-hidden"
         style={{ minHeight: 0, contain: "layout style" }}
         onClick={goNext}
       >
@@ -218,7 +246,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
             );
           }
           return (
-            <div className="absolute inset-0 flex items-center justify-center px-4 py-4">
+            <div className="absolute inset-0 flex items-center justify-center px-4 py-2">
               <Image
                 src={prevPanel.image_url}
                 alt={`Panel ${prev + 1}`}
@@ -229,7 +257,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
                   width: "auto",
                   height: "auto",
                   maxWidth: `${prevWidth}%`,
-                  maxHeight: "calc(100vh - 160px)",
+                  maxHeight: "100%",
                   ...fadeStyle,
                 }}
                 sizes="100vw"
@@ -240,26 +268,12 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
 
         {/* Current panel */}
         {(() => {
-          const curPanel = panels[current];
-          const curWidth = curPanel.custom_width ?? defaultPanelWidth;
-          const caption = curPanel.caption;
-          const captionPos = curPanel.caption_position ?? "bottom";
-          const captionSize = curPanel.caption_font_size ?? 16;
-          const captionFont = curPanel.caption_font_family ?? "var(--font-geist-sans)";
-          const captionColor = curPanel.caption_color ?? "#ffffff";
-          const imgMaxHeight = caption ? "calc(100vh - 240px)" : "calc(100vh - 160px)";
-
           // Caption-only panel (no image)
           if (!curPanel.image_url) {
             return (
               <div
                 className="flex items-center justify-center w-full h-full px-8"
-                style={{
-                  ...(transitionType === "crossfade" ? {
-                    opacity: crossfadeIn ? 1 : (prev !== null ? 0 : 1),
-                    transition: `opacity ${curPanel.fade_in_duration ?? fadeDuration}ms ease-in-out`,
-                  } : {}),
-                }}
+                style={crossfadeStyle}
               >
                 <p
                   style={{ fontSize: `min(${captionSize}px, 6.5vw)`, fontFamily: captionFont, color: captionColor }}
@@ -283,11 +297,8 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
                 width: "auto",
                 height: "auto",
                 maxWidth: `${curWidth}%`,
-                maxHeight: imgMaxHeight,
-                ...(transitionType === "crossfade" ? {
-                  opacity: crossfadeIn ? 1 : (prev !== null ? 0 : 1),
-                  transition: `opacity ${curPanel.fade_in_duration ?? fadeDuration}ms ease-in-out`,
-                } : {}),
+                maxHeight: "100%",
+                ...crossfadeStyle,
                 ...panelImageStyle,
               }}
               priority
@@ -295,30 +306,26 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
             />
           );
 
-          if (!caption) return img;
+          // For left/right captions, keep them inline with the image
+          if (caption && isHorizontalCaption) {
+            const captionEl = (
+              <p
+                style={{ fontSize: `min(${captionSize}px, 4vw)`, fontFamily: captionFont, color: captionColor, overflowWrap: "break-word", wordBreak: "break-word" }}
+                className="leading-snug whitespace-pre-wrap px-2 py-1 text-center w-full sm:max-w-[20%] sm:self-center"
+              >
+                {caption}
+              </p>
+            );
+            return (
+              <div className="flex flex-col sm:flex-row w-full justify-center items-center gap-3 sm:gap-8 max-h-full">
+                {captionPos === "left" && captionEl}
+                {img}
+                {captionPos === "right" && captionEl}
+              </div>
+            );
+          }
 
-          const isHorizontal = captionPos === "left" || captionPos === "right";
-          const captionEl = (
-            <p
-              style={{ fontSize: `min(${captionSize}px, 6.5vw)`, fontFamily: captionFont, color: captionColor, overflowWrap: "break-word", wordBreak: "break-word" }}
-              className={`leading-snug whitespace-pre-wrap px-2 py-1 text-center overflow-hidden ${
-                isHorizontal ? "w-full sm:max-w-[20%] sm:self-center" : "w-full"
-              }`}
-            >
-              {caption}
-            </p>
-          );
-
-          return (
-            <div
-              className={`flex ${isHorizontal ? "flex-col sm:flex-row w-full justify-center" : "flex-col"} items-center gap-3 sm:gap-8 max-h-full overflow-hidden`}
-              style={isHorizontal ? undefined : { maxWidth: `${curWidth}%` }}
-            >
-              {(captionPos === "top" || captionPos === "left") && captionEl}
-              {img}
-              {(captionPos === "bottom" || captionPos === "right") && captionEl}
-            </div>
-          );
+          return img;
         })()}
 
         {/* Fade-to-black overlay */}
@@ -329,6 +336,9 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
           />
         )}
       </div>
+
+      {/* Bottom caption row */}
+      {(captionPos === "bottom" || !caption) && captionBar}
 
       {/* Controls */}
       <div className="flex items-center justify-center gap-6 px-6 py-4 border-t border-white/10">
