@@ -198,9 +198,13 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
     transition: `opacity ${curPanel.fade_in_duration ?? fadeDuration}ms ease-in-out`,
   } : {};
 
-  // Caption rendered as a sibling row (top/bottom positions) so it never overlaps the controls
+  // caption-as-sibling reduces panel area height; account for it in image max-height
+  // header ~44px, controls ~80px, dots ~36px = ~160px fixed. caption row adds ~56px.
   const isHorizontalCaption = captionPos === "left" || captionPos === "right";
-  const captionBar = caption && !isHorizontalCaption && !!curPanel.image_url ? (
+  const hasExternalCaption = !!caption && !isHorizontalCaption && !!curPanel.image_url;
+  const imgMaxHeight = hasExternalCaption ? "calc(100vh - 220px)" : "calc(100vh - 164px)";
+
+  const captionBar = hasExternalCaption ? (
     <div className="px-6 py-2 text-center" style={crossfadeStyle}>
       <p
         style={{ fontSize: `min(${captionSize}px, 4vw)`, fontFamily: captionFont, color: captionColor, overflowWrap: "break-word", wordBreak: "break-word" }}
@@ -257,7 +261,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
                   width: "auto",
                   height: "auto",
                   maxWidth: `${prevWidth}%`,
-                  maxHeight: "100%",
+                  maxHeight: "calc(100vh - 164px)",
                   ...fadeStyle,
                 }}
                 sizes="100vw"
@@ -297,7 +301,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
                 width: "auto",
                 height: "auto",
                 maxWidth: `${curWidth}%`,
-                maxHeight: "100%",
+                maxHeight: imgMaxHeight,
                 ...crossfadeStyle,
                 ...panelImageStyle,
               }}
@@ -317,7 +321,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
               </p>
             );
             return (
-              <div className="flex flex-col sm:flex-row w-full justify-center items-center gap-3 sm:gap-8 max-h-full">
+              <div className="flex flex-col sm:flex-row w-full justify-center items-center gap-3 sm:gap-8" style={{ maxHeight: imgMaxHeight }}>
                 {captionPos === "left" && captionEl}
                 {img}
                 {captionPos === "right" && captionEl}
