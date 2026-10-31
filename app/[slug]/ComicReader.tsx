@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Panel } from "@/lib/supabase";
@@ -32,7 +32,11 @@ function pickOrigin(zoomOrigin: string): string {
 export default function ComicReader({ title, panels, autospeed, fadeDuration, transitionType, zoomAmount, zoomOrigin, bgColor, defaultPanelWidth, initialPanel = 0 }: Props) {
   const [current, setCurrent] = useState(initialPanel);
   const [prev, setPrev] = useState<number | null>(null);
-  const [playing, setPlaying] = useState(true);
+  const [playing, setPlaying] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const saved = localStorage.getItem("comic-autoplay");
+    return saved === null ? true : saved === "true";
+  });
   const [overlayOpacity, setOverlayOpacity] = useState(0); // for fade-black
   const [overlayTransition, setOverlayTransition] = useState(fadeDuration); // dynamic fade-black duration
   const [crossfadeIn, setCrossfadeIn] = useState(false);    // for crossfade
@@ -131,19 +135,22 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
     }
   }, []);
 
-  // Keep a ref to doTransition so the interval can always call the latest version
+  useEffect(() => {
+    localStorage.setItem("comic-autoplay", String(playing));
+  }, [playing]);
+
+  // Keep refs to latest values so the interval never needs to re-register
   const doTransitionRef = useRef(doTransition);
   useEffect(() => { doTransitionRef.current = doTransition; }, [doTransition]);
+  const currentRef = useRef(current);
+  useEffect(() => { currentRef.current = current; }, [current]);
 
   useEffect(() => {
     if (playing && total > 1) {
       intervalRef.current = setInterval(() => {
-        setCurrent((c) => {
-          if (!transitioningRef.current) {
-            doTransitionRef.current((c + 1) % total);
-          }
-          return c;
-        });
+        if (!transitioningRef.current) {
+          doTransitionRef.current((currentRef.current + 1) % total);
+        }
       }, autospeed * 1000);
     } else {
       clearTimer();
@@ -171,11 +178,13 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
   }
 
   const scaleFrom = 1 + zoomAmount / 100;
-  const panelImageStyle = {
+  // Memoized on current panel so the animation object is stable mid-panel (prevents mid-slide restarts)
+  const panelImageStyle = useMemo(() => ({
     animation: `kenburns ${autospeed}s linear forwards`,
     transformOrigin: originRef.current,
     ["--kb-scale" as string]: scaleFrom,
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [current, autospeed, scaleFrom]);
 
   return (
     <div className="h-screen overflow-hidden flex flex-col select-none" style={{ backgroundColor: bgColor }}>
@@ -188,7 +197,7 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
 
       {/* Panel display */}
       <div
-        className="flex-1 flex items-center justify-center px-4 py-4 cursor-pointer relative"
+        className="flex-1 flex items-center justify-center px-4 py-4 cursor-pointer relative overflow-hidden"
         style={{ minHeight: 0, contain: "layout style" }}
         onClick={goNext}
       >
