@@ -33,8 +33,6 @@ body {
 /* Force GPU compositing for animated comic reader elements */
 .comic-panel-img {
   will-change: transform, opacity;
-  backface-visibility: hidden;
-  transform: translateZ(0);
 }
 .comic-fade {
   will-change: opacity;
