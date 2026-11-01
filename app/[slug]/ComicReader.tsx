@@ -205,9 +205,9 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
   const imgMaxHeight = hasExternalCaption ? "calc(100vh - 220px)" : "calc(100vh - 164px)";
 
   const captionBar = hasExternalCaption ? (
-    <div className="px-6 py-2 text-center" style={crossfadeStyle}>
+    <div className="px-6 py-2 text-center overflow-y-auto" style={{ ...crossfadeStyle, maxHeight: "28vh" }}>
       <p
-        style={{ fontSize: `min(${captionSize}px, 4vw)`, fontFamily: captionFont, color: captionColor, overflowWrap: "break-word", wordBreak: "break-word" }}
+        style={{ fontSize: `min(${captionSize}px, 3vw)`, fontFamily: captionFont, color: captionColor, overflowWrap: "break-word", wordBreak: "break-word" }}
         className="leading-snug whitespace-pre-wrap max-w-4xl mx-auto"
       >
         {caption}
@@ -313,15 +313,26 @@ export default function ComicReader({ title, panels, autospeed, fadeDuration, tr
           // For left/right captions, keep them inline with the image
           if (caption && isHorizontalCaption) {
             const captionEl = (
-              <p
-                style={{ fontSize: `min(${captionSize}px, 4vw)`, fontFamily: captionFont, color: captionColor, overflowWrap: "break-word", wordBreak: "break-word" }}
-                className="leading-snug whitespace-pre-wrap px-2 py-1 text-center w-full sm:max-w-[20%] sm:self-center"
+              <div
+                style={{
+                  maxHeight: imgMaxHeight,
+                  overflowY: "auto",
+                  width: "38%",
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                }}
               >
-                {caption}
-              </p>
+                <p
+                  style={{ fontSize: `min(${captionSize}px, 2vw)`, fontFamily: captionFont, color: captionColor, overflowWrap: "break-word", wordBreak: "break-word" }}
+                  className="leading-snug whitespace-pre-wrap px-4 py-2 text-center w-full"
+                >
+                  {caption}
+                </p>
+              </div>
             );
             return (
-              <div className="flex flex-col sm:flex-row w-full justify-center items-center gap-3 sm:gap-8" style={{ maxHeight: imgMaxHeight }}>
+              <div className="flex flex-row w-full justify-center items-center gap-6 overflow-hidden" style={{ maxHeight: imgMaxHeight }}>
                 {captionPos === "left" && captionEl}
                 {img}
                 {captionPos === "right" && captionEl}
